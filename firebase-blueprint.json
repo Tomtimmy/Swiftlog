@@ -1,0 +1,157 @@
+{
+  "entities": {
+    "Tenant": {
+      "title": "Tenant",
+      "description": "Company profile for multi-tenancy",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "subdomain": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "User": {
+      "title": "User",
+      "description": "System user with roles and tenant association",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "COORDINATOR", "DRIVER", "WAREHOUSE_OFFICER"] },
+        "avatar": { "type": "string" }
+      },
+      "required": ["uid", "email", "role", "tenantId"]
+    },
+    "InventoryItem": {
+      "title": "Inventory Item",
+      "description": "Stock balance for a specific SKU in a location",
+      "type": "object",
+      "properties": {
+        "sku": { "type": "string" },
+        "name": { "type": "string" },
+        "quantity": { "type": "number" },
+        "locationId": { "type": "string" },
+        "tenantId": { "type": "string" }
+      }
+    },
+    "StockTransfer": {
+      "title": "Stock Transfer",
+      "description": "Movement of goods between locations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "source": { "type": "string" },
+        "destination": { "type": "string" },
+        "sku": { "type": "string" },
+        "quantity": { "type": "number" },
+        "status": { "type": "string", "enum": ["REQUESTED", "IN_TRANSIT", "RECEIVED"] },
+        "initiatedBy": { "type": "string" },
+        "receivedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Shipment": {
+      "title": "Shipment",
+      "description": "Logistics shipment record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "trackingNumber": { "type": "string" },
+        "origin": { "type": "string" },
+        "destination": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "IN_TRANSIT", "DELIVERED", "DELAYED"] },
+        "estimatedDelivery": { "type": "string", "format": "date-time" },
+        "assignedDriverId": { "type": "string" },
+        "currentLat": { "type": "number" },
+        "currentLng": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["trackingNumber", "origin", "destination", "status"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Operational task for team members",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "priority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH"] },
+        "status": { "type": "string", "enum": ["TODO", "IN_PROGRESS", "COMPLETED"] },
+        "assignedUserId": { "type": "string" },
+        "shipmentId": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "status", "priority", "tenantId"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Financial reimbursement requests with OCR metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "category": { "type": "string" },
+        "vendor": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED", "SENT", "RECEIVED"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["amount", "vendor", "status", "tenantId"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "In-app notification",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/tenants/{tenantId}": {
+      "schema": "Tenant",
+      "description": "Company profiles"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/inventory/{itemId}": {
+      "schema": "InventoryItem",
+      "description": "Current stock levels"
+    },
+    "/transfers/{transferId}": {
+      "schema": "StockTransfer",
+      "description": "Stock movement logs"
+    },
+    "/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Reimbursement and financial records"
+    },
+    "/shipments/{shipmentId}": {
+      "schema": "Shipment",
+      "description": "Shipment tracking data"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Task management"
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User specific notifications"
+    }
+  }
+}

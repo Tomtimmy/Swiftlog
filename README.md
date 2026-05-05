@@ -1,11 +1,30 @@
-<div align="center">
+# SwiftLog - Logistics & Task Manager
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+SwiftLog is a professional logistics management platform designed for tracking shipments, managing fleet operations, and task coordination.
 
-  <h1>Built with AI Studio</h2>
+## Features
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+- **Dashboard**: Real-time overview of fleet metrics and delivery performance.
+- **Shipments**: Comprehensive tracking system with status monitoring.
+- **Task Management**: Kanban-style operations board for teams.
+- **Fleet Monitoring**: IoT-ready vehicle telemetry and status tracking.
+- **Responsive Design**: Built with Tailwind CSS and Framer Motion for a polished experience.
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## Tech Stack
 
-</div>
+- **Frontend**: React 18, Vite, TypeScript
+- **Styling**: Tailwind CSS
+- **Animations**: Framer Motion
+- **Icons**: Lucide React
+- **Database**: Firebase (Firestore) - *Ready for connection*
+
+## Getting Started
+
+1. Clone the repository.
+2. Install dependencies: `npm install`
+3. Configure your Firebase credentials in `firebase-applet-config.json`.
+4. Run the development server: `npm run dev`
+
+## Deployment
+
+The app is configured for easy deployment to static hosting (Vercel, Netlify, GitHub Pages) or as a full-stack container.
