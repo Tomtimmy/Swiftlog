@@ -82,7 +82,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
           id="logout-btn"
         >
           <LogOut className="w-4 h-4" />
-          Terminate Session
+          Log Out
         </button>
       </div>
     </aside>

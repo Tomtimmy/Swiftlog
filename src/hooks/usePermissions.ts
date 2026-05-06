@@ -18,12 +18,17 @@ export function usePermissions() {
         setLoading(false);
         return;
       }
+      console.log('usePermissions: Fetching for', user.role);
       try {
         const res = await fetch('/api/permissions', {
           headers: { 'x-user-id': user.uid }
         });
         if (res.ok) {
-          setPermissions(await res.json());
+          const data = await res.json();
+          console.log('usePermissions: Loaded', data.length, 'rules');
+          setPermissions(data);
+        } else {
+          console.error('usePermissions: API error', res.status);
         }
       } catch (err) {
         console.error('Failed to fetch permissions', err);
@@ -33,7 +38,7 @@ export function usePermissions() {
     }
 
     fetchPermissions();
-  }, [user]);
+  }, [user?.uid]); // Specifically watch UID
 
   const hasPermission = (feature: string) => {
     if (!user) return false;

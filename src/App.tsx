@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
+import TopNav from './components/TopNav';
 import Dashboard from './pages/Dashboard';
 import Shipments from './pages/Shipments';
 import Tasks from './pages/Tasks';
@@ -8,6 +9,7 @@ import Inventory from './pages/Inventory';
 import Finance from './pages/Finance';
 import Reports from './pages/Reports';
 import UserManagement from './pages/UserManagement';
+import Settings from './pages/Settings';
 import Login from './pages/Login';
 import { useAuth } from './hooks/useAuth';
 import { usePermissions } from './hooks/usePermissions';
@@ -19,11 +21,21 @@ export default function App() {
   const { hasPermission, loading: permsLoading } = usePermissions();
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  if (loading || permsLoading) {
+  console.log('App: State', { authLoading: loading, permsLoading, hasUser: !!user });
+
+  if (loading || (user && permsLoading)) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
         <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
-        <p className="text-gray-500 font-medium animate-pulse uppercase tracking-widest text-[10px]">Synchronizing Terminal Identity...</p>
+        <p className="text-gray-500 font-medium animate-pulse uppercase tracking-widest text-[10px]">
+          {loading ? 'Initializing Secure Protocol...' : 'Synchronizing Terminal Identity...'}
+        </p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="mt-8 text-[10px] text-gray-400 hover:text-blue-600 uppercase tracking-widest font-bold transition-colors"
+        >
+          Force Re-Sync
+        </button>
       </div>
     );
   }
@@ -38,8 +50,10 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       
-      <main className="flex-1 ml-64 p-8">
-        <AnimatePresence mode="wait">
+      <div className="flex-1 ml-64 flex flex-col">
+        <TopNav />
+        <main className="p-8">
+          <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
             initial={{ opacity: 0, x: 20 }}
@@ -71,6 +85,7 @@ export default function App() {
                 {activeTab === 'finance' && <Finance />}
                 {activeTab === 'reports' && <Reports />}
                 {activeTab === 'team' && <UserManagement />}
+                {activeTab === 'settings' && <Settings />}
                 {activeTab !== 'dashboard' && 
                  activeTab !== 'shipments' && 
                  activeTab !== 'tasks' && 
@@ -89,5 +104,6 @@ export default function App() {
         </AnimatePresence>
       </main>
     </div>
-  );
+  </div>
+);
 }

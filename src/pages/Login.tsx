@@ -16,9 +16,10 @@ export default function Login() {
     setError('');
 
     try {
-      await login(email, password);
-    } catch (err) {
-      setError('Invalid credentials. Hint: use admin123');
+      const response = await login(email, password);
+      // login successful, useAuth hook will have updated the state
+    } catch (err: any) {
+      setError(err.message || 'Invalid credentials. Hint: use admin123');
     } finally {
       setIsLoading(false);
     }
@@ -121,15 +122,15 @@ export default function Login() {
               <button 
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-4 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-800 transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-2"
+                className="w-full py-4 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    AUTHENTICATING...
+                    SECURE LOGGING IN...
                   </>
                 ) : (
-                  'SIGN IN TO TERMINAL'
+                  'LOG IN TO YOUR TERMINAL'
                 )}
               </button>
             </form>

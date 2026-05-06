@@ -104,21 +104,22 @@ async function startServer() {
   }
 
   // Seed initial admin if not exists
-  const adminExists = await db.get('SELECT * FROM users WHERE email = ?', ['admin@swiftconnect.com']);
-  if (!adminExists) {
+  console.log('Verifying default user accounts...');
+  const defaultUsers = [
+    ['USR-001', 'admin@swiftconnect.com', 'admin123', 'Super Admin', 'ADMIN', 'TENANT-001', 'SA', 'ACTIVE'],
+    ['USR-002', 'manager@swiftconnect.com', 'manager123', 'Ops Manager', 'COORDINATOR', 'TENANT-001', 'OM', 'ACTIVE'],
+    ['USR-003', 'driver@swiftconnect.com', 'driver123', 'Fleet Driver', 'DRIVER', 'TENANT-001', 'FD', 'ACTIVE']
+  ];
+
+  for (const u of defaultUsers) {
     await db.run(
-      'INSERT INTO users (id, email, password, name, role, tenant_id, avatar, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      ['USR-001', 'admin@swiftconnect.com', 'admin123', 'Super Admin', 'ADMIN', 'TENANT-001', 'SA', 'ACTIVE']
-    );
-    await db.run(
-      'INSERT INTO users (id, email, password, name, role, tenant_id, avatar, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      ['USR-002', 'manager@swiftconnect.com', 'manager123', 'Ops Manager', 'COORDINATOR', 'TENANT-001', 'OM', 'ACTIVE']
-    );
-    await db.run(
-      'INSERT INTO users (id, email, password, name, role, tenant_id, avatar, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      ['USR-003', 'driver@swiftconnect.com', 'driver123', 'Fleet Driver', 'DRIVER', 'TENANT-001', 'FD', 'ACTIVE']
+      'INSERT OR REPLACE INTO users (id, email, password, name, role, tenant_id, avatar, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      u
     );
   }
+  console.log('Default users verified.');
+  const users = await db.all('SELECT email, password FROM users');
+  console.log('Users in DB:', users.map((u: any) => `${u.email}:${u.password}`).join(', '));
 
   // Auth Middleware
   const authMiddleware = async (req: any, res: any, next: any) => {
@@ -136,23 +137,48 @@ async function startServer() {
   };
 
   // API Routes
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  app.get('/api/health', async (req, res) => {
+    try {
+      const usersCount = await db.get('SELECT COUNT(*) as count FROM users');
+      const permsCount = await db.get('SELECT COUNT(*) as count FROM role_permissions');
+      const allUsers = await db.all('SELECT email, password FROM users');
+      res.json({ 
+        status: 'ok', 
+        timestamp: new Date().toISOString(),
+        database: {
+          users: usersCount.count,
+          permissions: permsCount.count,
+          emails: allUsers.map((u: any) => u.email)
+        }
+      });
+    } catch (err) {
+      res.status(500).json({ status: 'error', error: String(err) });
+    }
   });
 
   app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
-    const user = await db.get('SELECT * FROM users WHERE email = ? AND password = ?', [email, password]);
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    console.log(`Login attempt for ${email}`);
+    try {
+      const user = await db.get('SELECT * FROM users WHERE email = ? AND password = ?', [email, password]);
+      if (!user) {
+        console.log(`Login failed for ${email}: Invalid credentials`);
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      console.log(`Login success for ${email}: ${user.name} (${user.role})`);
 
-    const lastLogin = new Date().toISOString();
-    await db.run('UPDATE users SET last_login = ? WHERE id = ?', [lastLogin, user.id]);
-    await db.run(
-      'INSERT INTO audit_logs (user_id, user_name, action, details, timestamp) VALUES (?, ?, ?, ?, ?)',
-      [user.id, user.name, 'LOGIN', 'Successful terminal access', lastLogin]
-    );
+      const lastLogin = new Date().toISOString();
+      await db.run('UPDATE users SET last_login = ? WHERE id = ?', [lastLogin, user.id]);
+      await db.run(
+        'INSERT INTO audit_logs (user_id, user_name, action, details, timestamp) VALUES (?, ?, ?, ?, ?)',
+        [user.id, user.name, 'LOGIN', 'Successful terminal access', lastLogin]
+      );
 
-    res.json(user);
+      res.json(user);
+    } catch (err) {
+      console.error(`Login error for ${email}:`, err);
+      res.status(500).json({ error: 'Internal server error during authentication' });
+    }
   });
 
   app.get('/api/users', authMiddleware, adminMiddleware, async (req, res) => {
@@ -200,6 +226,28 @@ async function startServer() {
   app.get('/api/audit-logs', authMiddleware, adminMiddleware, async (req, res) => {
     const logs = await db.all('SELECT * FROM audit_logs ORDER BY id DESC LIMIT 100');
     res.json(logs);
+  });
+  
+  app.put('/api/profile', authMiddleware, async (req, res) => {
+    const { name, password } = req.body;
+    const user = (req as any).user;
+    
+    if (name) {
+      await db.run('UPDATE users SET name = ? WHERE id = ?', [name, user.id]);
+    }
+    
+    if (password) {
+      await db.run('UPDATE users SET password = ? WHERE id = ?', [password, user.id]);
+    }
+    
+    const updatedUser = await db.get('SELECT * FROM users WHERE id = ?', [user.id]);
+    
+    await db.run(
+      'INSERT INTO audit_logs (user_id, user_name, action, details, timestamp) VALUES (?, ?, ?, ?, ?)',
+      [user.id, user.name, 'UPDATE_PROFILE', `Updated profile (name: ${!!name}, password: ${!!password})`, new Date().toISOString()]
+    );
+    
+    res.json(updatedUser);
   });
 
   app.get('/api/permissions', authMiddleware, async (req, res) => {
