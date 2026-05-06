@@ -3,23 +3,17 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-}
 
-:root {
-  --bg: #F8F9FA;
-  --ink: #111827;
-  --line: #E5E7EB;
-  --primary: #2563EB;
-  --accent: #F59E0B;
-  --success: #10B981;
-  --error: #EF4444;
+  /* SwiftConnect Visual Identity [cite: 21] */
+  --color-navy-logistics: #1A365D;
+  --color-electric-orange: #F6AD55;
+  --color-ops-green: #38A169;
+  --color-slate-industrial: #4A5568;
 }
 
 @layer base {
   body {
-    background-color: var(--bg);
-    color: var(--ink);
-    font-family: var(--font-sans);
+    @apply bg-gray-50 text-slate-industrial font-sans antialiased;
   }
 }
 

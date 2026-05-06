@@ -15,11 +15,11 @@ export default function TopNav() {
   return (
     <header className="h-16 border-b border-gray-200 bg-white sticky top-0 z-40 px-8 flex items-center justify-between shadow-sm">
       <div className="flex-1 max-w-md relative hidden md:block">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-industrial" />
         <input 
           type="text" 
-          placeholder="Search fleet, tasks, or logistics..." 
-          className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500 transition-all font-medium"
+          placeholder="Terminal Search: Fleet, SKU, Units..." 
+          className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[11px] font-bold uppercase tracking-wider outline-none focus:ring-2 focus:ring-navy-logistics focus:bg-white transition-all"
         />
       </div>
 
@@ -27,11 +27,11 @@ export default function TopNav() {
         <div className="relative">
           <button 
             onClick={() => setShowNotifications(!showNotifications)}
-            className={`p-2 rounded-full transition-all relative ${showNotifications ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+            className={`p-2 rounded-full transition-all relative ${showNotifications ? 'bg-navy-logistics text-white shadow-lg shadow-navy-logistics/20' : 'text-slate-industrial hover:text-navy-logistics hover:bg-gray-100'}`}
           >
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-red-600 text-[9px] font-bold text-white rounded-full border-2 border-white flex items-center justify-center animate-bounce">
+              <span className="absolute top-1 right-1 w-4 h-4 bg-electric-orange text-[9px] font-black text-navy-logistics rounded-full border-2 border-white flex items-center justify-center animate-bounce">
                 {unreadCount}
               </span>
             )}

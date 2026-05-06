@@ -48,7 +48,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            {isDriver ? 'Driver Terminal' : isAdmin ? 'SwiftLog Overview' : 'Operational Dashboard'}
+            {isDriver ? 'Driver Terminal' : isAdmin ? 'SwiftConnect Overview' : 'Operational Dashboard'}
           </h1>
           <p className="text-gray-500 text-sm">
             {isDriver ? `Welcome back, ${user.name}. View your active routes.` : 'Real-time logistics and operations monitoring'}

@@ -39,50 +39,53 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   const filteredMenu = menuItems.filter(item => hasPermission(item.id));
 
   return (
-    <aside className="w-64 bg-white border-right border-gray-200 h-screen flex flex-col fixed left-0 top-0 z-20">
-      <div className="p-6 border-b border-gray-200 flex items-center gap-3">
-        <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-          <Truck className="text-white w-5 h-5" />
+    <aside className="w-64 bg-navy-logistics border-r border-white/5 h-screen flex flex-col fixed left-0 top-0 z-20 text-white shadow-2xl">
+      <div className="p-6 border-b border-white/5 flex items-center gap-3">
+        <div className="w-9 h-9 bg-electric-orange rounded-xl flex items-center justify-center shadow-lg shadow-electric-orange/20">
+          <Truck className="text-navy-logistics w-5 h-5 font-bold" />
         </div>
-        <span className="font-bold text-xl tracking-tight text-gray-900">SwiftLog</span>
+        <span className="font-black text-lg tracking-tighter uppercase text-white">SwiftConnect</span>
       </div>
       
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto mt-2">
         {filteredMenu.map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id)}
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200",
+              "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300 group",
               activeTab === item.id 
-                ? "bg-blue-50 text-blue-700 font-medium" 
-                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                ? "bg-white text-navy-logistics font-bold shadow-xl shadow-black/10" 
+                : "text-gray-400 hover:bg-white/5 hover:text-white"
             )}
             id={`nav-${item.id}`}
           >
-            <item.icon className={cn("w-5 h-5", activeTab === item.id ? "text-blue-600" : "text-gray-400")} />
-            {item.label}
+            <item.icon className={cn("w-5 h-5 transition-colors", activeTab === item.id ? "text-electric-orange" : "text-gray-500 group-hover:text-white")} />
+            <span className="text-[11px] font-bold uppercase tracking-widest">{item.label}</span>
           </button>
         ))}
       </nav>
 
-      <div className="p-4 border-t border-gray-200 bg-gray-50/50">
+      <div className="p-4 border-t border-white/5 bg-black/20">
         <div className="flex items-center gap-3 px-3 py-4 mb-2">
-          <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs ring-2 ring-white">
+          <div className="w-10 h-10 rounded-full bg-electric-orange text-navy-logistics flex items-center justify-center font-black text-xs ring-4 ring-white/5 shadow-inner">
             {user?.avatar || '??'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-gray-900 truncate tracking-tight">{user?.name || 'Anonymous'}</p>
-            <p className="text-[10px] text-gray-500 truncate uppercase font-bold tracking-widest">{user?.role || 'Guest'}</p>
+            <p className="text-[11px] font-black text-white truncate tracking-tight uppercase">{user?.name || 'Anonymous'}</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+               <div className="w-1.5 h-1.5 bg-ops-green rounded-full shadow-[0_0_8px_#38A169]" />
+               <p className="text-[9px] text-gray-500 truncate uppercase font-bold tracking-[0.15em]">{user?.role || 'Guest'}</p>
+            </div>
           </div>
         </div>
         <button 
           onClick={logout}
-          className="w-full flex items-center gap-3 px-3 py-2 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-md transition-all duration-200 font-bold text-xs uppercase tracking-widest"
+          className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-red-600/10 hover:text-red-500 rounded-xl transition-all duration-200 font-bold text-[10px] uppercase tracking-[0.2em]"
           id="logout-btn"
         >
           <LogOut className="w-4 h-4" />
-          Log Out
+          Terminate
         </button>
       </div>
     </aside>

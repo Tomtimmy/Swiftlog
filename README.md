@@ -1,6 +1,6 @@
-# SwiftLog - Logistics & Task Manager
+# SwiftConnect - Logistics & Fleet Terminal
 
-SwiftLog is a professional logistics management platform designed for tracking shipments, managing fleet operations, and task coordination.
+SwiftConnect is a professional logistics management platform designed for tracking shipments, managing fleet operations, and revenue governance.
 
 ## Features
 
@@ -16,15 +16,20 @@ SwiftLog is a professional logistics management platform designed for tracking s
 - **Styling**: Tailwind CSS
 - **Animations**: Framer Motion
 - **Icons**: Lucide React
-- **Database**: Firebase (Firestore) - *Ready for connection*
+- **Database**: SQLite with `better-sqlite3` handled via an Express.js backend.
+- **Reporting**: Advanced revenue analytics and SKU performance governance.
 
 ## Getting Started
 
 1. Clone the repository.
 2. Install dependencies: `npm install`
-3. Configure your Firebase credentials in `firebase-applet-config.json`.
-4. Run the development server: `npm run dev`
+3. Run the development server: `npm run dev` (Starts both Vite and Express backend).
 
 ## Deployment
 
-The app is configured for easy deployment to static hosting (Vercel, Netlify, GitHub Pages) or as a full-stack container.
+### Full-Stack (Recommended)
+This app includes an Express server and SQLite database. For full functionality, deploy to a platform that supports Node.js (e.g., Cloud Run, Heroku, Railway).
+
+### Static Frontend (GitHub Pages)
+A GitHub Actions workflow is included in `.github/workflows/static.yml`. 
+*Note: The frontend will be functional, but server-dependent features (API, Database) will require a hosted API endpoint.*

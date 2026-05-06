@@ -14,24 +14,30 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
 
+  // Request logging
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+  });
+
   // Database setup
   const dbPath = path.resolve(__dirname, 'database.sqlite');
-  console.log(`Initializing database at ${dbPath}...`);
+  console.log(`[SERVER] Initializing database at ${dbPath}...`);
   let db: any;
   try {
-    db = new Database(dbPath);
+    const originalDb = new Database(dbPath, { verbose: console.log });
     // Helper to match the async sqlite API I used before
-    const originalDb = db;
     db = {
       exec: (sql: string) => Promise.resolve(originalDb.exec(sql)),
       get: (sql: string, params: any[] = []) => Promise.resolve(originalDb.prepare(sql).get(...params)),
       all: (sql: string, params: any[] = []) => Promise.resolve(originalDb.prepare(sql).all(...params)),
       run: (sql: string, params: any[] = []) => Promise.resolve(originalDb.prepare(sql).run(...params))
     };
-    console.log('Database connected.');
+    console.log('[SERVER] Database connected.');
   } catch (err) {
-    console.error('Failed to connect to database at ' + dbPath + ':', err);
-    process.exit(1);
+    console.error('[SERVER] CRITICAL DATABASE ERROR:', err);
+    // Don't exit immediately, try to catch the error in the logs
+    setTimeout(() => process.exit(1), 5000);
   }
 
   try {
@@ -97,6 +103,16 @@ async function startServer() {
         unit TEXT,
         location TEXT,
         updated_at TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS sales (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT,
+        sku TEXT,
+        location TEXT,
+        units INTEGER,
+        revenue REAL,
+        timestamp TEXT
       );
 
       CREATE TABLE IF NOT EXISTS notifications (
@@ -218,6 +234,33 @@ async function startServer() {
         'INSERT INTO inventories (id, tenant_id, sku, name, category, quantity, price, unit, location, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         i
       );
+    }
+  }
+
+  // Seed sales if empty
+  const salesCount = await db.get('SELECT COUNT(*) as count FROM sales');
+  if (salesCount.count === 0) {
+    const locations = ['HQ', 'NORTH-HUB', 'SOUTH-HUB', 'EAST-HUB', 'WEST-HUB'];
+    const skus = ['SKU-LOG-01', 'SKU-LOG-02', 'SKU-LOG-03'];
+    const now = new Date();
+    
+    for (let day = 0; day < 30; day++) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - day);
+      const timestamp = date.toISOString();
+      
+      for (const loc of locations) {
+        for (const sku of skus) {
+          const units = Math.floor(Math.random() * 20) + 1;
+          const price = sku === 'SKU-LOG-01' ? 45.00 : (sku === 'SKU-LOG-02' ? 12.50 : 29.99);
+          const revenue = units * price;
+          
+          await db.run(
+            'INSERT INTO sales (id, tenant_id, sku, location, units, revenue, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [`SALE-${Date.now()}-${Math.random()}`, 'TENANT-001', sku, loc, units, revenue, timestamp]
+          );
+        }
+      }
     }
   }
 
@@ -447,6 +490,65 @@ async function startServer() {
   app.post('/api/notifications/:id/read', authMiddleware, async (req, res) => {
     await db.run('UPDATE notifications SET is_read = 1 WHERE id = ?', [req.params.id]);
     res.json({ success: true });
+  });
+
+  // Reports API [cite: 21, 23, 24]
+  app.get('/api/reports/sales-summary', authMiddleware, async (req, res) => {
+    const user = (req as any).user;
+    if (user.role !== 'ADMIN' && user.role !== 'COORDINATOR') {
+      return res.status(403).json({ error: 'Access restricted to Management.' });
+    }
+
+    try {
+      const summary = await db.all(`
+        SELECT 
+          location,
+          SUM(revenue) as total_revenue,
+          SUM(units) as total_units,
+          COUNT(*) as transaction_count
+        FROM sales
+        WHERE tenant_id = ?
+        GROUP BY location
+      `, [user.tenant_id]);
+
+      const performance = await db.all(`
+        SELECT 
+          s.sku,
+          i.name,
+          SUM(s.revenue) as revenue,
+          SUM(s.units) as units_sold,
+          i.quantity as current_stock,
+          (CAST(SUM(s.units) AS FLOAT) / (NULLIF(i.quantity, 0))) as stock_to_sales_ratio
+        FROM sales s
+        JOIN inventories i ON s.sku = i.sku
+        WHERE s.tenant_id = ?
+        GROUP BY s.sku
+      `, [user.tenant_id]);
+
+      res.json({ summary, performance });
+    } catch (err) {
+      console.error('Report Error:', err);
+      res.status(500).json({ error: 'Failed to generate reporting analytics.' });
+    }
+  });
+
+  app.get('/api/reports/drilldown/:location', authMiddleware, async (req, res) => {
+    const user = (req as any).user;
+    try {
+      const detail = await db.all(`
+        SELECT 
+          sku,
+          SUM(units) as units,
+          SUM(revenue) as revenue
+        FROM sales
+        WHERE tenant_id = ? AND location = ?
+        GROUP BY sku
+      `, [user.tenant_id, req.params.location]);
+
+      res.json(detail);
+    } catch (err) {
+      res.status(500).json({ error: 'Drilldown retrieval failure.' });
+    }
   });
 
   app.post('/api/users/:id/reset-password', authMiddleware, adminMiddleware, async (req, res) => {
