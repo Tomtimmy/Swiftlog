@@ -1,278 +1,242 @@
 import React, { useState } from 'react';
-import { useInventory } from '../hooks/useInventory';
-import { Package, ArrowRightLeft, Warehouse, Factory, CheckCircle, Clock, Plus, Search, Filter } from 'lucide-react';
-import Modal from '../components/Modal';
-import { format } from 'date-fns';
+import { Package, Search, Edit3, ShieldAlert, Check, X, AlertCircle, TrendingUp, Filter } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { useInventory, InventoryItem } from '../hooks/useInventory';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Inventory() {
-  const { inventory, transfers, loading, initiateTransfer, receiveTransfer } = useInventory();
-  const [activeTab, setActiveTab] = useState<'STOCK' | 'TRANSFERS'>('STOCK');
-  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
-  const [newTransfer, setNewTransfer] = useState({
-    sku: '',
-    quantity: 0,
-    source: 'Processing Plant A',
-    destination: 'Main Warehouse NY'
-  });
+  const { items, loading, updatePrice } = useInventory();
+  const { user } = useAuth();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [newPrice, setNewPrice] = useState<string>('');
+  const [isConfirming, setIsConfirming] = useState(false);
 
-  const handleInitiate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await initiateTransfer({
-      sku: newTransfer.sku,
-      quantity: Number(newTransfer.quantity),
-      source: newTransfer.source,
-      destination: newTransfer.destination
-    });
-    setIsTransferModalOpen(false);
-    setNewTransfer({ sku: '', quantity: 0, source: 'Processing Plant A', destination: 'Main Warehouse NY' });
+  const isManager = user?.role === 'ADMIN' || user?.role === 'COORDINATOR';
+
+  const filtered = items.filter(i => 
+    i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    i.sku.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleEditClick = (item: InventoryItem) => {
+    if (!isManager) return;
+    setEditingItem(item);
+    setNewPrice(item.price.toString());
+    setIsConfirming(false);
+  };
+
+  const handlePriceUpdate = async () => {
+    if (!editingItem || !newPrice) return;
+    const price = parseFloat(newPrice);
+    if (isNaN(price)) return;
+
+    if (!isConfirming) {
+      setIsConfirming(true);
+      return;
+    }
+
+    const success = await updatePrice(editingItem.id, editingItem.name, price);
+    if (success) {
+      setEditingItem(null);
+      setIsConfirming(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Inventory & Distribution</h1>
-          <p className="text-gray-500 text-sm">Manage stock levels and inter-facility transfers</p>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
+            <Package className="w-6 h-6 text-blue-600" />
+            Inventory & Price Governance
+          </h1>
+          <p className="text-xs text-gray-500 font-medium uppercase tracking-widest mt-1">
+            {isManager ? 'Master Pricing Control Active' : 'Location-Locked View Mode'}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <button 
-            onClick={() => setIsTransferModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            New Transfer
+        
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="Filter SKUs..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500 transition-all font-medium w-64"
+            />
+          </div>
+          <button className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+            <Filter className="w-4 h-4 text-gray-600" />
           </button>
         </div>
       </div>
 
-      <div className="flex gap-4 border-b border-gray-200">
-        <button 
-          className={`pb-3 text-sm font-bold tracking-widest uppercase transition-colors relative ${activeTab === 'STOCK' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
-          onClick={() => setActiveTab('STOCK')}
-        >
-          Overall Stock
-          {activeTab === 'STOCK' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
-        </button>
-        <button 
-          className={`pb-3 text-sm font-bold tracking-widest uppercase transition-colors relative ${activeTab === 'TRANSFERS' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
-          onClick={() => setActiveTab('TRANSFERS')}
-        >
-          Transfer Logs
-          {activeTab === 'TRANSFERS' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
-        </button>
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-gray-50/50 border-b border-gray-100">
+              <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Product / SKU</th>
+              <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Category</th>
+              <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Stock Level</th>
+              <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Unit Price</th>
+              <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Hub Location</th>
+              <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Manage</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {loading ? (
+              <tr><td colSpan={6} className="p-12 text-center text-[10px] text-gray-400 uppercase font-black tracking-[0.2em] animate-pulse">Initializing Inventory Protocol...</td></tr>
+            ) : filtered.map((item) => (
+              <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
+                <td className="p-4">
+                  <p className="text-sm font-bold text-gray-900 leading-none">{item.name}</p>
+                  <p className="text-[10px] font-mono text-gray-400 mt-1 uppercase leading-none">{item.sku}</p>
+                </td>
+                <td className="p-4">
+                  <span className="text-[10px] font-bold px-2 py-1 bg-gray-100 text-gray-600 rounded uppercase tracking-wider">{item.category}</span>
+                </td>
+                <td className="p-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">{item.quantity}</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase">{item.unit}s</span>
+                  </div>
+                </td>
+                <td className="p-4 text-right">
+                  <p className="text-sm font-mono font-bold text-blue-600">${item.price.toFixed(2)}</p>
+                </td>
+                <td className="p-4">
+                  <span className="text-[10px] font-bold font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">{item.location}</span>
+                </td>
+                <td className="p-4">
+                  <div className="flex justify-center">
+                    {isManager ? (
+                      <button 
+                        onClick={() => handleEditClick(item)}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <ShieldAlert className="w-4 h-4 text-gray-200" title="Governance Restricted" />
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {loading ? (
-        <div className="p-12 text-center text-gray-400">Syncing with warehouse...</div>
-      ) : activeTab === 'STOCK' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 technical-card p-0">
-            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input 
-                  type="text" 
-                  placeholder="Search SKU or Product Name..." 
-                  className="w-full pl-9 pr-4 py-2 bg-gray-50 border-none rounded-md text-sm focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <Filter className="w-4 h-4 text-gray-400 cursor-pointer" />
-            </div>
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-gray-50/50">
-                  <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">SKU</th>
-                  <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Product Name</th>
-                  <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Location</th>
-                  <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Balance</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {inventory.map((item, i) => (
-                  <tr key={i} className="hover:bg-gray-50 transition-colors">
-                    <td className="p-4">
-                      <span className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{item.sku}</span>
-                    </td>
-                    <td className="p-4">
-                      <p className="text-sm font-medium text-gray-900">{item.name}</p>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2 text-xs text-gray-600">
-                        <Warehouse className="w-3 h-3" />
-                        {item.locationId}
-                      </div>
-                    </td>
-                    <td className="p-4 font-bold text-sm text-gray-900">{item.quantity.toLocaleString()} units</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="space-y-4">
-            <div className="technical-card p-6 bg-gradient-to-br from-blue-600 to-blue-700 text-white border-none">
-              <p className="text-xs font-bold text-blue-200 uppercase tracking-widest mb-4">Storage Capacity</p>
-              <div className="flex items-end justify-between mb-2">
-                <h3 className="text-3xl font-bold">78%</h3>
-                <span className="text-xs text-blue-100">12,400 / 15,000 m³</span>
-              </div>
-              <div className="h-2 bg-blue-900/30 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-400 w-[78%]" />
-              </div>
-            </div>
-            
-            <div className="technical-card p-6">
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Top Moving SKUs</h4>
-              <div className="space-y-4">
-                {[
-                  { sku: 'SKU-A100', name: 'Beans', change: '+12%' },
-                  { sku: 'SKU-B200', name: 'Honey', change: '+5%' }
-                ].map((s, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-bold text-gray-900">{s.name}</p>
-                      <p className="text-[10px] text-gray-400">{s.sku}</p>
-                    </div>
-                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">{s.change}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="technical-card p-0">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-gray-50/50">
-                <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">ID</th>
-                <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Movement</th>
-                <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Item / Qty</th>
-                <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</th>
-                <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {transfers.map((trf) => (
-                <tr key={trf.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="p-4">
-                    <p className="text-xs font-bold text-gray-900">{trf.id}</p>
-                    <p className="text-[10px] text-gray-400">{format(new Date(trf.createdAt), 'MMM dd, HH:mm')}</p>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                       <div className="flex flex-col items-center">
-                          <Factory className="w-3 h-3 text-gray-400 mb-1" />
-                          <span className="text-[10px] font-medium text-gray-600">{trf.source}</span>
-                       </div>
-                       <ArrowRightLeft className="w-3 h-3 text-blue-300" />
-                       <div className="flex flex-col items-center">
-                          <Warehouse className="w-3 h-3 text-gray-400 mb-1" />
-                          <span className="text-[10px] font-medium text-gray-600">{trf.destination}</span>
-                       </div>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <p className="text-xs font-bold text-gray-900">{trf.sku}</p>
-                    <p className="text-xs text-blue-600">{trf.quantity} units</p>
-                  </td>
-                  <td className="p-4">
-                    {trf.status === 'IN_TRANSIT' ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
-                        <Clock className="w-3 h-3" />
-                        EN ROUTE
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
-                        <CheckCircle className="w-3 h-3" />
-                        RECEIVED
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-4">
-                    {trf.status === 'IN_TRANSIT' && (
-                      <button 
-                        onClick={() => receiveTransfer(trf.id)}
-                        className="text-xs font-bold text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded transition-colors"
-                      >
-                        Confirm Receipt
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {transfers.length === 0 && (
-            <div className="p-12 text-center text-gray-400 text-sm">No transfer history found.</div>
-          )}
-        </div>
-      )}
-
-      <Modal 
-        isOpen={isTransferModalOpen} 
-        onClose={() => setIsTransferModalOpen(false)} 
-        title="Initiate Stock Transfer"
-      >
-        <form onSubmit={handleInitiate} className="space-y-4">
-          <div>
-            <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">SKU Select</label>
-            <select 
-              className="w-full bg-gray-50 border border-gray-100 rounded-md p-2.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-              value={newTransfer.sku}
-              onChange={(e) => setNewTransfer({...newTransfer, sku: e.target.value})}
-              required
+      <AnimatePresence>
+        {editingItem && (
+          <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200"
             >
-              <option value="">Choose Product...</option>
-              {inventory.map(i => <option key={i.sku} value={i.sku}>{i.sku} - {i.name}</option>)}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Quantity</label>
-              <input 
-                type="number" 
-                className="w-full bg-gray-50 border border-gray-100 rounded-md p-2.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-                value={newTransfer.quantity}
-                onChange={(e) => setNewTransfer({...newTransfer, quantity: Number(e.target.value)})}
-                required
-              />
-            </div>
-            <div>
-              <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Priority</label>
-              <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-md border border-gray-100">
-                 <Clock className="w-4 h-4 text-gray-400" />
-                 <span className="text-sm">Standard</span>
+              <div className="p-6 bg-gray-900 text-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-600 rounded-lg">
+                      <TrendingUp className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold">Price Governance</h3>
+                      <p className="text-[10px] text-gray-400 uppercase tracking-[0.1em] font-bold">Modifying SKU: {editingItem.sku}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setEditingItem(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
 
-          <div>
-             <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Destination Warehouse</label>
-             <div className="flex items-center gap-2 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
-                <Warehouse className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-medium text-gray-800">{newTransfer.destination}</span>
-             </div>
-          </div>
+              <div className="p-6 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Product Authority</label>
+                  <p className="text-sm font-bold text-gray-900">{editingItem.name}</p>
+                </div>
 
-          <div className="pt-4 flex gap-3">
-             <button 
-              type="button"
-              className="flex-1 py-2.5 bg-gray-50 text-gray-600 text-sm font-bold rounded-lg hover:bg-gray-100 transition-colors"
-              onClick={() => setIsTransferModalOpen(false)}
-             >
-                Cancel
-             </button>
-             <button 
-              type="submit"
-              className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-100"
-             >
-                Deploy Transfer
-             </button>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest font-mono">Current Price</label>
+                    <div className="p-3 bg-gray-50 border border-gray-100 rounded-lg text-lg font-mono font-bold text-gray-500">
+                      ${editingItem.price.toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-blue-600 uppercase tracking-widest font-mono">New Evaluation</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono font-bold text-gray-400">$</span>
+                      <input 
+                        type="number"
+                        step="0.01"
+                        autoFocus
+                        value={newPrice}
+                        onChange={(e) => setNewPrice(e.target.value)}
+                        className="w-full pl-8 pr-4 py-3 bg-blue-50 border border-blue-100 rounded-lg text-lg font-mono font-bold text-blue-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {isConfirming ? (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    className="p-4 bg-amber-50 border border-amber-100 rounded-xl flex gap-3"
+                  >
+                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-amber-900 leading-tight">Confirm Price Versioning</p>
+                      <p className="text-[10px] text-amber-700 mt-1 leading-relaxed">
+                        This change takes effect immediately. The entire team will be notified of this price implementation. Do you wish to proceed?
+                      </p>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl flex gap-3">
+                    <AlertCircle className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[10px] text-gray-500 leading-relaxed font-medium">
+                        Price edits require high-level clearance. Historical records remain at previous values; new price applies to all future operations.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    onClick={() => setEditingItem(null)}
+                    className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all uppercase tracking-widest"
+                  >
+                    Abort
+                  </button>
+                  <button 
+                    onClick={handlePriceUpdate}
+                    className={`flex-1 py-3 rounded-xl text-sm font-bold text-white transition-all uppercase tracking-widest flex items-center justify-center gap-2 ${
+                      isConfirming ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
+                  >
+                    {isConfirming ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Execute Change
+                      </>
+                    ) : (
+                      'Initialize Update'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </div>
-        </form>
-      </Modal>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

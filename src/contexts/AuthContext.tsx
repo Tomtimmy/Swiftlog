@@ -55,7 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: dbUser.email,
         name: dbUser.name,
         role: dbUser.role,
-        avatar: dbUser.avatar
+        avatar: dbUser.avatar,
+        location: dbUser.location
       };
 
       setUser(mappedUser);

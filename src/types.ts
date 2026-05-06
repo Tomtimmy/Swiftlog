@@ -24,6 +24,7 @@ export interface User {
   name: string;
   role: UserRole;
   avatar?: string;
+  location?: string;
 }
 
 export type ShipmentStatus = 'PENDING' | 'IN_TRANSIT' | 'DELIVERED' | 'DELAYED';
@@ -46,6 +47,7 @@ export interface Shipment {
   assignedDriverId?: string;
   currentLat?: number;
   currentLng?: number;
+  location?: string;
   history?: ShipmentHistory[];
   createdAt: string;
   updatedAt: string;
@@ -66,6 +68,7 @@ export interface Task {
   assignedUserId?: string;
   shipmentId?: string;
   dueDate?: string;
+  location?: string;
   createdAt: string;
 }
 

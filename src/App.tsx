@@ -3,9 +3,9 @@ import Sidebar from './components/Sidebar';
 import TopNav from './components/TopNav';
 import Dashboard from './pages/Dashboard';
 import Shipments from './pages/Shipments';
+import Inventory from './pages/Inventory';
 import Tasks from './pages/Tasks';
 import Fleet from './pages/Fleet';
-import Inventory from './pages/Inventory';
 import Finance from './pages/Finance';
 import Reports from './pages/Reports';
 import UserManagement from './pages/UserManagement';
@@ -79,9 +79,9 @@ export default function App() {
               <>
                 {activeTab === 'dashboard' && <Dashboard />}
                 {activeTab === 'shipments' && <Shipments />}
+                {activeTab === 'inventory' && <Inventory />}
                 {activeTab === 'tasks' && <Tasks />}
                 {activeTab === 'fleet' && <Fleet />}
-                {activeTab === 'inventory' && <Inventory />}
                 {activeTab === 'finance' && <Finance />}
                 {activeTab === 'reports' && <Reports />}
                 {activeTab === 'team' && <UserManagement />}

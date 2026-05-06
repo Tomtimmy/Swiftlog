@@ -12,9 +12,12 @@ import { format } from 'date-fns';
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
 
 export default function Reports() {
-  const { inventory, transfers } = useInventory();
+  const { items: inventory, loading: invLoading } = useInventory();
   const { shipments } = useShipments();
   const { expenses } = useFinance();
+
+  // Mock transfers since it's not fully implemented yet in new logic
+  const transfers = [];
 
   // Data Aggregation for Charts
   const inventoryData = inventory.map(item => ({

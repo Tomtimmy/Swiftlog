@@ -14,6 +14,7 @@ interface ManagedUser {
   email: string;
   role: UserRole;
   status: 'ACTIVE' | 'INACTIVE';
+  location: string;
   last_login?: string;
 }
 
@@ -40,10 +41,13 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'users' | 'permissions' | 'logs'>('users');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'TEAM_MEMBER' as UserRole, password: '' });
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null);
+  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'TEAM_MEMBER' as UserRole, password: '', location: 'HQ' });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const roles: UserRole[] = ['ADMIN', 'COORDINATOR', 'DRIVER', 'TEAM_MEMBER'];
+  const locations = ['HQ', 'NORTH-HUB', 'SOUTH-HUB', 'EAST-HUB', 'WEST-HUB'];
   const features = ['dashboard', 'shipments', 'inventory', 'finance', 'reports', 'tasks', 'team', 'fleet', 'settings'];
 
   const fetchData = async () => {
@@ -112,7 +116,34 @@ export default function UserManagement() {
       if (res.ok) {
         await fetchData();
         setIsCreateModalOpen(false);
-        setNewUser({ name: '', email: '', role: 'TEAM_MEMBER', password: '' });
+        setNewUser({ name: '', email: '', role: 'TEAM_MEMBER', password: '', location: 'HQ' });
+      }
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser || !selectedUser) return;
+    setActionLoading('update');
+    try {
+      const res = await fetch(`/api/users/${selectedUser.id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': currentUser.uid 
+        },
+        body: JSON.stringify({
+          name: selectedUser.name,
+          role: selectedUser.role,
+          status: selectedUser.status,
+          location: selectedUser.location
+        })
+      });
+      if (res.ok) {
+        await fetchData();
+        setIsEditModalOpen(false);
       }
     } finally {
       setActionLoading(null);
@@ -142,10 +173,13 @@ export default function UserManagement() {
   const filteredTeam = team.filter(u => 
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.role.toLowerCase().includes(searchTerm.toLowerCase())
+    u.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (u.location && u.location.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  if (currentUser?.role !== 'ADMIN') {
+  const canManageUsers = currentUser?.role === 'ADMIN' || currentUser?.role === 'COORDINATOR';
+
+  if (!canManageUsers) {
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] text-center p-8">
         <Shield className="w-16 h-16 text-gray-200 mb-4" />
@@ -250,6 +284,7 @@ export default function UserManagement() {
                   <thead>
                     <tr className="bg-gray-50/50 border-b border-gray-100">
                       <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Operator</th>
+                      <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Location Locking</th>
                       <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">System Role</th>
                       <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</th>
                       <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Last Activity</th>
@@ -269,6 +304,13 @@ export default function UserManagement() {
                               <p className="text-xs text-gray-500">{u.email}</p>
                             </div>
                           </div>
+                        </td>
+                        <td className="p-4">
+                           <div className="flex items-center gap-2">
+                             <div className="p-1 px-2 bg-gray-100 rounded text-[10px] font-bold text-gray-600 font-mono">
+                               {u.location || 'N/A'}
+                             </div>
+                           </div>
                         </td>
                         <td className="p-4">
                           <span className={`text-[10px] font-bold px-2 py-1 rounded tracking-widest ${
@@ -291,6 +333,16 @@ export default function UserManagement() {
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => {
+                                setSelectedUser(u);
+                                setIsEditModalOpen(true);
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"
+                              title="Edit Operator"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
                             <button 
                               onClick={() => handleResetPassword(u.id)}
                               disabled={!!actionLoading}
@@ -454,16 +506,28 @@ export default function UserManagement() {
               placeholder="e.g. Sarah Jenkins"
              />
           </div>
-          <div className="space-y-2">
-             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Email Terminal</label>
-             <input 
-              required
-              type="email"
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500"
-              value={newUser.email}
-              onChange={e => setNewUser({...newUser, email: e.target.value})}
-              placeholder="operator@swiftconnect.com"
-             />
+          <div className="space-y-1 md:flex md:gap-4 md:space-y-0">
+            <div className="flex-1 space-y-2">
+               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Email Terminal</label>
+               <input 
+                required
+                type="email"
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                value={newUser.email}
+                onChange={e => setNewUser({...newUser, email: e.target.value})}
+                placeholder="operator@swiftconnect.com"
+               />
+            </div>
+            <div className="flex-1 space-y-2">
+               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Location Lock</label>
+               <select 
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                value={newUser.location}
+                onChange={e => setNewUser({...newUser, location: e.target.value})}
+               >
+                  {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+               </select>
+            </div>
           </div>
           <div className="space-y-2">
              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Security Role</label>
@@ -500,6 +564,68 @@ export default function UserManagement() {
              </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal 
+        isOpen={isEditModalOpen} 
+        onClose={() => setIsEditModalOpen(false)}
+        title="Update Operator Profile"
+      >
+        {selectedUser && (
+          <form onSubmit={handleUpdateUser} className="space-y-4">
+            <div className="space-y-2">
+               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Name</label>
+               <input 
+                required
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                value={selectedUser.name}
+                onChange={e => setSelectedUser({...selectedUser, name: e.target.value})}
+               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Role</label>
+                 <select 
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  value={selectedUser.role}
+                  onChange={e => setSelectedUser({...selectedUser, role: e.target.value as UserRole})}
+                 >
+                    {roles.map(r => <option key={r} value={r}>{r}</option>)}
+                 </select>
+              </div>
+              <div className="space-y-2">
+                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Location Lock</label>
+                 <select 
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  value={selectedUser.location}
+                  onChange={e => setSelectedUser({...selectedUser, location: e.target.value})}
+                 >
+                    {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                 </select>
+              </div>
+            </div>
+            <div className="space-y-2">
+               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Account Status</label>
+               <select 
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                value={selectedUser.status}
+                onChange={e => setSelectedUser({...selectedUser, status: e.target.value as any})}
+               >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="INACTIVE">INACTIVE</option>
+               </select>
+            </div>
+            <div className="pt-4">
+               <button 
+                type="submit"
+                disabled={!!actionLoading}
+                className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm hover:bg-blue-700 transition-all font-bold uppercase tracking-widest"
+               >
+                  {actionLoading === 'update' ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'UPDATE OPERATOR'}
+               </button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

@@ -1,45 +1,55 @@
 import { useState, useEffect } from 'react';
-import { Notification } from '../types';
+import { useAuth } from './useAuth';
 
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: 'n1',
-    userId: 'current-user',
-    message: 'Shipment SH-103 is delayed due to weather in Dallas.',
-    read: false,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'n2',
-    userId: 'current-user',
-    message: 'New driver Marco Rossi has been assigned to VK-902.',
-    read: true,
-    createdAt: new Date(Date.now() - 3600000).toISOString()
-  },
-  {
-    id: 'n3',
-    userId: 'current-user',
-    message: 'Critical: Vehicle VK-440 reported engine temperature anomaly.',
-    read: false,
-    createdAt: new Date(Date.now() - 7200000).toISOString()
-  }
-];
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  is_read: number;
+  created_at: string;
+}
 
 export function useNotifications() {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setNotifications(MOCK_NOTIFICATIONS);
+  const fetchNotifications = async () => {
+    if (!user) return;
+    try {
+      const res = await fetch('/api/notifications', {
+        headers: { 'x-user-id': user.uid }
+      });
+      if (res.ok) {
+        setNotifications(await res.json());
+      }
+    } catch (err) {
+      console.error('Failed to fetch notifications', err);
+    } finally {
       setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const markAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    }
   };
 
-  return { notifications, loading, markAsRead };
+  useEffect(() => {
+    fetchNotifications();
+    // Poll for notifications every 30 seconds for "real-time" alerts
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [user?.uid]);
+
+  const markAsRead = async (id: string) => {
+    if (!user) return;
+    try {
+      await fetch(`/api/notifications/${id}/read`, {
+        method: 'POST',
+        headers: { 'x-user-id': user.uid }
+      });
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: 1 } : n));
+    } catch (err) {
+      console.error('Failed to mark notification as read', err);
+    }
+  };
+
+  return { notifications, loading, markAsRead, refresh: fetchNotifications };
 }
