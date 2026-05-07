@@ -1,44 +1,59 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, MapPin, Battery, Thermometer, ShieldCheck, AlertCircle, Activity, Move } from 'lucide-react';
+import { Truck, MapPin, Battery, Thermometer, ShieldCheck, AlertCircle, Activity, Move, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
-
-const INITIAL_VEHICLES = [
-  { id: 'VK-902', name: 'Volvo FH16', plate: 'NJ-8821', driver: 'Marco Rossi', status: 'ACTIVE', battery: '82%', temp: '18°C', location: 'Near Newark', x: 200, y: 150 },
-  { id: 'VK-331', name: 'Mercedes Actros', plate: 'NY-1022', driver: 'Elena Petrova', status: 'IDLE', battery: '95%', temp: '20°C', location: 'Brooklyn Depot', x: 450, y: 300 },
-  { id: 'VK-440', name: 'Scania R500', plate: 'TX-4491', driver: 'Sam Wilson', status: 'MAINTENANCE', battery: '12%', temp: '24°C', location: 'Austin Service', x: 600, y: 200 },
-  { id: 'VK-112', name: 'Isuzu NPR', plate: 'CA-9920', driver: 'Tanaka Ken', status: 'ACTIVE', battery: '45%', temp: '19°C', location: 'I-5 North', x: 100, y: 400 },
-];
+import { useFleet } from '../hooks/useFleet';
 
 export default function Fleet() {
-  const [vehicles, setVehicles] = useState(INITIAL_VEHICLES);
+  const { vehicles, loading, updateTelemetry } = useFleet();
+  const [movingVehicles, setMovingVehicles] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (vehicles.length > 0) {
+      setMovingVehicles(vehicles.map(v => ({
+        ...v,
+        // Convert lat/lng to pseudo-coordinates for the mock map
+        x: (v.current_lng + 180) * 2, 
+        y: (v.current_lat + 90) * 1.5
+      })));
+    }
+  }, [vehicles]);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setVehicles(prev => prev.map(v => {
+      setMovingVehicles(prev => prev.map(v => {
         if (v.status !== 'ACTIVE') return v;
-        // Mock movement
-        const newX = v.x + (Math.random() - 0.5) * 5;
-        const newY = v.y + (Math.random() - 0.5) * 5;
+        // Mock slight visual movement
+        const newX = v.x + (Math.random() - 0.5) * 2;
+        const newY = v.y + (Math.random() - 0.5) * 2;
         return { ...v, x: newX, y: newY };
       }));
-    }, 2000);
+    }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [vehicles]);
+
+  if (loading) {
+    return (
+      <div className="h-[60vh] flex flex-col items-center justify-center">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-2" />
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Establishing Fleet Link...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Fleet Operations</h1>
-          <p className="text-gray-500 text-sm">Monitor vehicle health and real-time telemetry</p>
+          <p className="text-gray-500 text-sm">Monitor vehicle health and real-time telemetry from the database</p>
         </div>
         <div className="flex gap-2">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-md">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-bold text-emerald-700 uppercase tracking-tighter">Live Telemetry</span>
           </div>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium">
-            Add Vehicle
+          <button className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition shadow-sm">
+            Registry Master
           </button>
         </div>
       </div>
@@ -63,7 +78,7 @@ export default function Fleet() {
 
             <div className="absolute top-4 left-4 z-10 space-y-2">
               <div className="bg-gray-800/80 backdrop-blur-md p-3 rounded-lg border border-white/10">
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Map Legend</p>
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Fleet Legend</p>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -82,11 +97,11 @@ export default function Fleet() {
             </div>
 
             {/* Live Vehicle Markers */}
-            {vehicles.map((v) => (
+            {movingVehicles.map((v) => (
               <motion.div
                 key={v.id}
-                animate={{ x: v.x, y: v.y }}
-                transition={{ duration: 2, ease: "linear" }}
+                animate={{ x: v.x % 800, y: v.y % 500 }}
+                transition={{ duration: 3, ease: "linear" }}
                 className="absolute"
                 style={{ top: 0, left: 0 }}
               >
@@ -96,22 +111,22 @@ export default function Fleet() {
                     v.status === 'IDLE' ? 'bg-blue-500' : 'bg-red-500'
                   }`} />
                   <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-gray-800 text-white text-[10px] px-2 py-1 rounded shadow-xl border border-white/20 z-20">
-                    <p className="font-bold">{v.id}</p>
-                    <p className="text-gray-400">{v.driver}</p>
+                    <p className="font-bold">{v.id} - {v.plate}</p>
+                    <p className="text-gray-400">{v.driver_name || 'No assigned driver'}</p>
                   </div>
                 </div>
               </motion.div>
             ))}
 
             <div className="absolute bottom-4 right-4 bg-gray-800/80 backdrop-blur-md p-2 rounded-md border border-white/10 text-[10px] text-gray-400 font-mono">
-              GPS SIGNAL: NOMINAL [LAT 40.71 / LNG -74.00]
+              GPS SIGNAL: NOMINAL | NETWORK: 5G SECURE
             </div>
           </div>
         </div>
 
         <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
           {vehicles.map((v) => (
-            <div key={v.id} className="technical-card p-4 hover:border-blue-300 transition-all">
+            <div key={v.id} className="technical-card p-4 hover:border-blue-300 transition-all border-l-4 border-l-blue-500">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className={v.status === 'MAINTENANCE' ? 'p-2 bg-red-50 rounded' : 'p-2 bg-blue-50 rounded'}>
@@ -130,23 +145,27 @@ export default function Fleet() {
               
               <div className="grid grid-cols-2 gap-2 text-[10px] mb-4">
                 <div className="bg-gray-50 p-1.5 rounded border border-gray-100">
-                  <p className="text-gray-400 uppercase font-bold tracking-tighter mb-0.5">Location</p>
-                  <p className="font-medium truncate">{v.location}</p>
+                  <p className="text-gray-400 uppercase font-bold tracking-tighter mb-0.5">Assigned Pilot</p>
+                  <p className="font-medium truncate">{v.driver_name}</p>
                 </div>
                 <div className="bg-gray-50 p-1.5 rounded border border-gray-100">
-                  <p className="text-gray-400 uppercase font-bold tracking-tighter mb-0.5">Int. Temp</p>
-                  <p className="font-medium">{v.temp}</p>
+                  <p className="text-gray-400 uppercase font-bold tracking-tighter mb-0.5">Current Zone</p>
+                  <p className="font-medium truncate">{v.location}</p>
                 </div>
               </div>
 
               <div className="flex gap-2">
-                <button className="flex-1 py-1.5 bg-gray-50 text-[10px] font-bold text-gray-600 rounded hover:bg-gray-100">DIAGNOSTICS</button>
-                <button className="flex-1 py-1.5 bg-blue-50 text-[10px] font-bold text-blue-600 rounded hover:bg-blue-100">TRACK</button>
+                <button className="flex-1 py-1.5 bg-gray-900 text-[10px] font-bold text-white rounded hover:bg-gray-800 uppercase tracking-widest">Diagnostics</button>
+                <button className="flex-1 py-1.5 bg-gray-100 text-[10px] font-bold text-gray-600 rounded hover:bg-gray-200 uppercase tracking-widest">Track</button>
               </div>
             </div>
           ))}
+          {vehicles.length === 0 && (
+            <div className="p-8 text-center text-gray-400 italic text-xs">No vehicles registered in fleet.</div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+

@@ -86,14 +86,7 @@ export default function App() {
                 {activeTab === 'reports' && <Reports />}
                 {activeTab === 'team' && <UserManagement />}
                 {activeTab === 'settings' && <Settings />}
-                {activeTab !== 'dashboard' && 
-                 activeTab !== 'shipments' && 
-                 activeTab !== 'tasks' && 
-                 activeTab !== 'fleet' && 
-                 activeTab !== 'inventory' && 
-                 activeTab !== 'finance' && 
-                 activeTab !== 'reports' && 
-                 activeTab !== 'team' && (
+                {!['dashboard', 'shipments', 'tasks', 'fleet', 'inventory', 'finance', 'reports', 'team', 'settings'].includes(activeTab) && (
                   <div className="flex items-center justify-center h-[70vh] text-gray-400 italic font-medium uppercase tracking-[0.2em] text-[10px]">
                     Module Offline - Deployment in Progress
                   </div>

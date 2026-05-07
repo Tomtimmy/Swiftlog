@@ -135,6 +135,22 @@ async function startServer() {
         details TEXT,
         timestamp TEXT
       );
+
+      CREATE TABLE IF NOT EXISTS vehicles (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT,
+        name TEXT,
+        plate TEXT,
+        driver_name TEXT,
+        driver_id TEXT,
+        status TEXT,
+        battery TEXT,
+        temp TEXT,
+        location TEXT,
+        current_lat REAL,
+        current_lng REAL,
+        last_update TEXT
+      );
     `);
     console.log('Database schema created/verified.');
   } catch (err) {
@@ -235,6 +251,24 @@ async function startServer() {
       );
     }
   }
+
+  // Seed vehicles if empty
+  const vehiclesCount = await db.get('SELECT COUNT(*) as count FROM vehicles');
+  if (vehiclesCount.count === 0) {
+    const initialVehicles = [
+      ['VK-902', 'TENANT-001', 'Volvo FH16', 'NJ-8821', 'Marco Rossi', 'DRV-001', 'ACTIVE', '82%', '18°C', 'Near Newark', 40.7128, -74.0060, new Date().toISOString()],
+      ['VK-331', 'TENANT-001', 'Mercedes Actros', 'NY-1022', 'Elena Petrova', 'DRV-002', 'IDLE', '95%', '20°C', 'Brooklyn Depot', 40.6782, -73.9442, new Date().toISOString()],
+      ['VK-440', 'TENANT-001', 'Scania R500', 'TX-4491', 'Sam Wilson', 'DRV-003', 'MAINTENANCE', '12%', '24°C', 'Austin Service', 30.2672, -97.7431, new Date().toISOString()],
+      ['VK-112', 'TENANT-001', 'Isuzu NPR', 'CA-9920', 'Tanaka Ken', 'USR-003', 'ACTIVE', '45%', '19°C', 'I-5 North', 34.0522, -118.2437, new Date().toISOString()],
+    ];
+    for (const v of initialVehicles) {
+      await db.run(
+        'INSERT INTO vehicles (id, tenant_id, name, plate, driver_name, driver_id, status, battery, temp, location, current_lat, current_lng, last_update) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        v
+      );
+    }
+  }
+
   // Seed inventory if empty
   const invCount = await db.get('SELECT COUNT(*) as count FROM inventories');
   if (invCount.count === 0) {
@@ -494,6 +528,77 @@ async function startServer() {
     );
 
     res.json({ success: true, updatedAt });
+  });
+
+  // Fleet API
+  app.get('/api/fleet', authMiddleware, async (req: any, res) => {
+    const user = req.user;
+    const vehicles = await db.all('SELECT * FROM vehicles WHERE tenant_id = ?', [user.tenant_id]);
+    res.json(vehicles);
+  });
+
+  app.put('/api/fleet/:id/telemetry', authMiddleware, async (req: any, res) => {
+    const { status, lat, lng, location } = req.body;
+    const lastUpdate = new Date().toISOString();
+    await db.run(
+      'UPDATE vehicles SET status = ?, current_lat = ?, current_lng = ?, location = ?, last_update = ? WHERE id = ?',
+      [status, lat, lng, location, lastUpdate, req.params.id]
+    );
+    res.json({ success: true, lastUpdate });
+  });
+
+  // Dashboard API
+  app.get('/api/dashboard/stats', authMiddleware, async (req: any, res) => {
+    const user = req.user;
+    const tenantId = user.tenant_id;
+
+    const shipments = await db.all('SELECT status FROM shipments WHERE tenant_id = ?', [tenantId]);
+    const alerts = await db.get('SELECT COUNT(*) as count FROM notifications WHERE tenant_id = ? AND is_read = 0 AND type = "ALERT"', [tenantId]);
+    const fleet = await db.all('SELECT status FROM vehicles WHERE tenant_id = ?', [tenantId]);
+
+    const activeShipments = shipments.filter((s: any) => s.status === 'IN_TRANSIT').length;
+    const deliveredCount = shipments.filter((s: any) => s.status === 'DELIVERED').length;
+    const onTimeRate = shipments.length > 0 ? (deliveredCount / shipments.length) * 100 : 100;
+
+    res.json({
+      activeShipments,
+      onTimeRate: onTimeRate.toFixed(1),
+      inTransit: activeShipments, // Simplification
+      criticalAlerts: alerts.count,
+      fleetSummary: {
+        active: fleet.filter((v: any) => v.status === 'ACTIVE').length,
+        idle: fleet.filter((v: any) => v.status === 'IDLE').length,
+        maintenance: fleet.filter((v: any) => v.status === 'MAINTENANCE').length,
+      }
+    });
+  });
+
+  app.get('/api/dashboard/revenue', authMiddleware, async (req: any, res) => {
+    const user = req.user;
+    // Get last 7 days of revenue from sales
+    try {
+      const revenue = await db.all(`
+        SELECT 
+          strftime('%a', timestamp) as name,
+          SUM(revenue) as value
+        FROM sales
+        WHERE tenant_id = ? AND timestamp >= date('now', '-7 days')
+        GROUP BY name
+        ORDER BY timestamp ASC
+      `, [user.tenant_id]);
+      res.json(revenue);
+    } catch (err) {
+      console.error('Revenue API error:', err);
+      res.json([
+        { name: 'Mon', value: 400 },
+        { name: 'Tue', value: 300 },
+        { name: 'Wed', value: 450 },
+        { name: 'Thu', value: 550 },
+        { name: 'Fri', value: 350 },
+        { name: 'Sat', value: 200 },
+        { name: 'Sun', value: 150 },
+      ]);
+    }
   });
 
   // Notifications API

@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useShipments } from '../hooks/useShipments';
 import { 
   TrendingUp, 
   Package, 
   Truck, 
   AlertTriangle,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from 'lucide-react';
 import StatsCard from '../components/StatsCard';
 import { StatusBadge } from '../components/Badges';
@@ -21,27 +23,49 @@ import {
   Area
 } from 'recharts';
 
-const data = [
-  { name: 'Mon', value: 40 },
-  { name: 'Tue', value: 30 },
-  { name: 'Wed', value: 45 },
-  { name: 'Thu', value: 55 },
-  { name: 'Fri', value: 35 },
-  { name: 'Sat', value: 20 },
-  { name: 'Sun', value: 15 },
-];
-
-const shipments = [
-  { id: 'SH-7821', tracking: 'TRK-90021-X', client: 'Acme Corp', dest: 'New York, NY', status: 'IN_TRANSIT', eta: '2h 15m' },
-  { id: 'SH-7822', tracking: 'TRK-90022-Y', client: 'Global Logistics', dest: 'Chicago, IL', status: 'PENDING', eta: '5h 40m' },
-  { id: 'SH-7823', tracking: 'TRK-90023-Z', client: 'TechFlow Inc', dest: 'Austin, TX', status: 'DELAYED', eta: 'Delayed' },
-  { id: 'SH-7824', tracking: 'TRK-90024-A', client: 'SwiftRetail', dest: 'Miami, FL', status: 'DELIVERED', eta: 'Delivered' },
-];
-
 export default function Dashboard() {
   const { user } = useAuth();
+  const { shipments, loading: shipLoading } = useShipments();
+  const [stats, setStats] = useState<any>(null);
+  const [revenueData, setRevenueData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const isDriver = user?.role === 'DRIVER';
   const isAdmin = user?.role === 'ADMIN';
+
+  useEffect(() => {
+    async function fetchDashboardData() {
+      if (!user) return;
+      try {
+        const [statsRes, revenueRes] = await Promise.all([
+          fetch('/api/dashboard/stats', { headers: { 'x-user-id': user.uid } }),
+          fetch('/api/dashboard/revenue', { headers: { 'x-user-id': user.uid } })
+        ]);
+
+        if (statsRes.ok) setStats(await statsRes.json());
+        if (revenueRes.ok) setRevenueData(await revenueRes.json());
+      } catch (err) {
+        console.error('Failed to fetch dashboard data', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDashboardData();
+  }, [user?.uid]);
+
+  if (loading || shipLoading) {
+    return (
+      <div className="h-[60vh] flex flex-col items-center justify-center">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-2" />
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Compiling Terminal Intelligence...</p>
+      </div>
+    );
+  }
+
+  // Filter shipments for driver view if needed
+  const displayShipments = isDriver 
+    ? shipments.filter(s => s.assigned_driver_id === user.uid).slice(0, 5)
+    : shipments.slice(0, 5);
 
   return (
     <div className="space-y-6">
@@ -51,7 +75,7 @@ export default function Dashboard() {
             {isDriver ? 'Driver Terminal' : isAdmin ? 'SwiftConnect Overview' : 'Operational Dashboard'}
           </h1>
           <p className="text-gray-500 text-sm">
-            {isDriver ? `Welcome back, ${user.name}. View your active routes.` : 'Real-time logistics and operations monitoring'}
+            {isDriver ? `Welcome back, ${user.name}. View your active routes.` : 'Real-time logistics and operations monitoring from DB'}
           </p>
         </div>
         <div className="flex gap-2">
@@ -66,8 +90,8 @@ export default function Dashboard() {
             </>
           )}
           {isDriver && (
-            <button className="px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm">
-              Clock In
+            <button className="px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm uppercase tracking-widest text-[10px] font-bold">
+              Dispatch Ready
             </button>
           )}
         </div>
@@ -76,17 +100,17 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {isDriver ? (
           <>
-            <StatsCard title="Assigned Drops" value="8" icon={Package} trend="Remaining for today" trendUp={false} />
-            <StatsCard title="Route Distance" value="42km" icon={Truck} trend="Estimated return: 17:00" />
+            <StatsCard title="Assigned Drops" value={displayShipments.length.toString()} icon={Package} trend="Remaining for today" trendUp={false} />
+            <StatsCard title="Completed today" value="2" icon={Truck} trend="Estimated return: 17:00" />
             <StatsCard title="On Time Rate" value="99%" icon={TrendingUp} trend="System rank: #4" trendUp={true} />
-            <StatsCard title="Active Order" value="#7821" icon={Clock} trend="Current stop: Austin" />
+            <StatsCard title="Active Order" value={displayShipments[0]?.id || 'NONE'} icon={Clock} trend={displayShipments[0]?.location || 'Standby'} />
           </>
         ) : (
           <>
-            <StatsCard title="Active Shipments" value="1,284" icon={Package} trend="12% vs last week" trendUp={true} />
-            <StatsCard title="On Time Delivery" value="98.2%" icon={TrendingUp} trend="0.4% vs last week" trendUp={true} />
-            <StatsCard title="In Transit" value="642" icon={Truck} trend="8% vs yesterday" trendUp={false} />
-            <StatsCard title="Critical Alerts" value="3" icon={AlertTriangle} trend="No change" />
+            <StatsCard title="Active Shipments" value={stats?.activeShipments || '0'} icon={Package} trend="Live from database" trendUp={true} />
+            <StatsCard title="On Time Delivery" value={`${stats?.onTimeRate || '0'}%`} icon={TrendingUp} trend="Based on final status" trendUp={true} />
+            <StatsCard title="In Transit" value={stats?.inTransit || '0'} icon={Truck} trend="Currently on road" trendUp={false} />
+            <StatsCard title="Critical Alerts" value={stats?.criticalAlerts || '0'} icon={AlertTriangle} trend="Action required" />
           </>
         )}
       </div>
@@ -95,25 +119,19 @@ export default function Dashboard() {
         <div className="lg:col-span-2 technical-card p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500">
-              {isDriver ? 'Active Route Map' : 'Delivery Performance'}
+              {isDriver ? 'Active Route Map' : 'Global Revenue Stream (Last 7 Days)'}
             </h2>
-            {!isDriver && (
-              <select className="text-xs bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none">
-                <option>Last 7 Days</option>
-                <option>Last 30 Days</option>
-              </select>
-            )}
           </div>
           {isDriver ? (
             <div className="h-[300px] w-full bg-gray-50 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-gray-200">
                <Truck className="w-12 h-12 text-gray-300 mb-2" />
                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Active Navigation Terminal</p>
-               <p className="text-xs text-gray-400 mt-1">Austin, TX Hub → Central Logistics</p>
+               <p className="text-xs text-gray-400 mt-1">{displayShipments[0]?.origin || 'Hub'} → {displayShipments[0]?.destination || 'Destination'}</p>
             </div>
           ) : (
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data}>
+                <AreaChart data={revenueData}>
                   <defs>
                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.1}/>
@@ -161,37 +179,47 @@ export default function Dashboard() {
         <div className="lg:col-span-2 technical-card">
           <div className="p-6 border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900">
-              {isDriver ? 'My Assigned Deliveries' : 'Recent Shipments'}
+              {isDriver ? 'My Assigned Deliveries' : 'Internal Registry: Recent Shipments'}
             </h2>
             <button className="text-xs font-semibold text-blue-600 flex items-center gap-1 hover:underline">
               View All <ArrowRight className="w-3 h-3" />
             </button>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto text-[11px]">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-gray-50">
-                  <th className="data-grid-header">Order ID</th>
-                  <th className="data-grid-header">Tracking</th>
-                  <th className="data-grid-header">Client</th>
-                  <th className="data-grid-header">Destination</th>
-                  <th className="data-grid-header">Status</th>
-                  <th className="data-grid-header text-right">ETA</th>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="p-4 uppercase tracking-widest text-gray-400 font-bold">UID</th>
+                  <th className="p-4 uppercase tracking-widest text-gray-400 font-bold">Client / SKU</th>
+                  <th className="p-4 uppercase tracking-widest text-gray-400 font-bold">Vector</th>
+                  <th className="p-4 uppercase tracking-widest text-gray-400 font-bold">Status</th>
+                  <th className="p-4 uppercase tracking-widest text-gray-400 font-bold text-right">ETA</th>
                 </tr>
               </thead>
-              <tbody>
-                {shipments.map((s) => (
-                  <tr key={s.id} className="data-grid-row">
-                    <td className="data-grid-cell font-bold text-gray-900">{s.id}</td>
-                    <td className="data-grid-cell font-mono">{s.tracking}</td>
-                    <td className="data-grid-cell">{s.client}</td>
-                    <td className="data-grid-cell">{s.dest}</td>
-                    <td className="data-grid-cell">
+              <tbody className="divide-y divide-gray-50">
+                {displayShipments.map((s) => (
+                  <tr key={s.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="p-4 font-bold text-gray-900">{s.id}</td>
+                    <td className="p-4">
+                      <p className="font-mono text-gray-600">{s.tracking_number}</p>
+                    </td>
+                    <td className="p-4">
+                      <p className="font-medium">{s.destination}</p>
+                      <p className="text-[10px] text-gray-400">{s.origin}</p>
+                    </td>
+                    <td className="p-4">
                       <StatusBadge status={s.status as any} />
                     </td>
-                    <td className="data-grid-cell text-right font-semibold">{s.eta}</td>
+                    <td className="p-4 text-right font-mono font-bold text-blue-600">
+                      {new Date(s.estimated_delivery).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </td>
                   </tr>
                 ))}
+                {displayShipments.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-gray-400 italic">No assigned vectors found in database.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -199,7 +227,7 @@ export default function Dashboard() {
 
         <div className="technical-card p-6">
           <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-6">
-            {isDriver ? 'Vehicle Health' : 'Fleet Status'}
+            {isDriver ? 'Vehicle Health' : 'Fleet Status Matrix'}
           </h2>
           <div className="space-y-6">
             {isDriver ? (
@@ -228,29 +256,29 @@ export default function Dashboard() {
                 </div>
               </>
             ) : (
-              <>
-                <div className="flex items-center justify-between">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-emerald-50 rounded border border-emerald-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                    <span className="text-sm font-medium">On Road</span>
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span className="text-xs font-bold text-emerald-800 uppercase tracking-tight">Active Duty</span>
                   </div>
-                  <span className="text-sm font-mono font-bold">142</span>
+                  <span className="text-sm font-mono font-bold text-emerald-900">{stats?.fleetSummary?.active || 0}</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded border border-blue-100">
                   <div className="flex items-center gap-3">
                     <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                    <span className="text-sm font-medium">Ready</span>
+                    <span className="text-xs font-bold text-blue-800 uppercase tracking-tight">Standby / Idle</span>
                   </div>
-                  <span className="text-sm font-mono font-bold">28</span>
+                  <span className="text-sm font-mono font-bold text-blue-900">{stats?.fleetSummary?.idle || 0}</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between p-3 bg-red-50 rounded border border-red-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-                    <span className="text-sm font-medium">Maintenance</span>
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                    <span className="text-xs font-bold text-red-800 uppercase tracking-tight">Maintenance Required</span>
                   </div>
-                  <span className="text-sm font-mono font-bold">5</span>
+                  <span className="text-sm font-mono font-bold text-red-900">{stats?.fleetSummary?.maintenance || 0}</span>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>
