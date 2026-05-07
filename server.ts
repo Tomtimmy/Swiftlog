@@ -67,6 +67,7 @@ async function startServer() {
         current_lat REAL,
         current_lng REAL,
         location TEXT,
+        history TEXT,
         created_at TEXT,
         updated_at TEXT
       );
@@ -194,13 +195,26 @@ async function startServer() {
   const shipmentsCount = await db.get('SELECT COUNT(*) as count FROM shipments');
   if (shipmentsCount.count === 0) {
     const initialShipments = [
-      ['SH-101', 'TENANT-001', 'SW-90210-A', 'New York Port', 'Distribution Center A, NJ', 'IN_TRANSIT', '2026-05-06T14:00:00Z', 'DRV-001', 40.7128, -74.0060, 'NORTH-HUB', '2026-05-01T08:00:00Z', '2026-05-05T10:00:00Z'],
-      ['SH-102', 'TENANT-001', 'SW-90211-B', 'Los Angeles Hub', 'Retail Store 42, CA', 'DELIVERED', '2026-05-04T16:30:00Z', 'DRV-002', 34.0522, -118.2437, 'NORTH-HUB', '2026-05-02T09:00:00Z', '2026-05-04T16:30:00Z'],
-      ['SH-103', 'TENANT-001', 'SW-90212-C', 'Dallas Logistics Center', 'Warehouse 09, TX', 'DELAYED', '2026-05-05T18:00:00Z', 'DRV-003', 32.7767, -96.7970, 'SOUTH-HUB', '2026-05-03T11:00:00Z', '2026-05-05T07:00:00Z']
+      ['SH-101', 'TENANT-001', 'SW-90210-A', 'New York Port', 'Distribution Center A, NJ', 'IN_TRANSIT', '2026-05-06T14:00:00Z', 'DRV-001', 40.7128, -74.0060, 'NORTH-HUB', JSON.stringify([
+        { status: 'PENDING', note: 'Shipment created and awaiting pickup.', location: 'New York Port', timestamp: '2026-05-01T08:00:00Z' },
+        { status: 'IN_TRANSIT', note: 'Package has been picked up by the driver.', location: 'New York Port', timestamp: '2026-05-01T10:30:00Z' },
+        { status: 'IN_TRANSIT', note: 'Arrived at sorting facility.', location: 'Jersey City Terminal', timestamp: '2026-05-03T15:00:00Z' }
+      ]), '2026-05-01T08:00:00Z', '2026-05-05T10:00:00Z'],
+      ['SH-102', 'TENANT-001', 'SW-90211-B', 'Los Angeles Hub', 'Retail Store 42, CA', 'DELIVERED', '2026-05-04T16:30:00Z', 'DRV-002', 34.0522, -118.2437, 'NORTH-HUB', JSON.stringify([
+        { status: 'PENDING', note: 'Logistics request received.', location: 'Los Angeles Hub', timestamp: '2026-05-02T09:00:00Z' },
+        { status: 'IN_TRANSIT', note: 'Departed from origin hub.', location: 'Los Angeles Hub', timestamp: '2026-05-02T11:00:00Z' },
+        { status: 'IN_TRANSIT', note: 'In transit to final destination.', location: 'Santa Monica', timestamp: '2026-05-03T14:00:00Z' },
+        { status: 'DELIVERED', note: 'Successfully delivered to retail store.', location: 'Retail Store 42, CA', timestamp: '2026-05-04T16:30:00Z' }
+      ]), '2026-05-02T09:00:00Z', '2026-05-04T16:30:00Z'],
+      ['SH-103', 'TENANT-001', 'SW-90212-C', 'Dallas Logistics Center', 'Warehouse 09, TX', 'DELAYED', '2026-05-05T18:00:00Z', 'DRV-003', 32.7767, -96.7970, 'SOUTH-HUB', JSON.stringify([
+        { status: 'PENDING', note: 'Assigned to Dallas fleet.', location: 'Dallas Logistics Center', timestamp: '2026-05-03T11:00:00Z' },
+        { status: 'IN_TRANSIT', note: 'Departed Dallas hub.', location: 'Dallas Logistics Center', timestamp: '2026-05-04T08:00:00Z' },
+        { status: 'DELAYED', note: 'Vehicle maintenance issue reported.', location: 'Waco, TX', timestamp: '2026-05-05T07:00:00Z' }
+      ]), '2026-05-03T11:00:00Z', '2026-05-05T07:00:00Z']
     ];
     for (const s of initialShipments) {
       await db.run(
-        'INSERT INTO shipments (id, tenant_id, tracking_number, origin, destination, status, estimated_delivery, assigned_driver_id, current_lat, current_lng, location, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO shipments (id, tenant_id, tracking_number, origin, destination, status, estimated_delivery, assigned_driver_id, current_lat, current_lng, location, history, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         s
       );
     }
@@ -372,7 +386,12 @@ async function startServer() {
     }
 
     const shipments = await db.all(query, params);
-    res.json(shipments);
+    // Parse JSON fields
+    const parsedShipments = shipments.map((s: any) => ({
+      ...s,
+      history: s.history ? JSON.parse(s.history) : []
+    }));
+    res.json(parsedShipments);
   });
 
   app.put('/api/shipments/:id', authMiddleware, async (req, res) => {

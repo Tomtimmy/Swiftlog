@@ -574,7 +574,7 @@ export default function Shipments() {
                       {expandedShipmentIds.has(s.id) && (
                         <tr className="bg-gray-50/50">
                           <td colSpan={9} className="p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-in fade-in slide-in-from-left duration-300">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in slide-in-from-left duration-300">
                               <div className="space-y-4">
                                 <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 border-l-2 border-blue-500">Route Information</h4>
                                 <div className="space-y-3">
@@ -611,27 +611,41 @@ export default function Shipments() {
                                   </div>
                                 </div>
                               </div>
-                              <div className="space-y-4 flex flex-col">
-                                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 border-l-2 border-purple-500">Quick Context</h4>
-                                <div className="flex-1 bg-white p-3 rounded border border-gray-100">
-                                  <p className="text-[10px] text-gray-400 mb-2">Latest Milestone</p>
+                              <div className="space-y-4 col-span-1 md:col-span-2">
+                                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 border-l-2 border-purple-500">Shipment History</h4>
+                                <div className="bg-white p-4 rounded border border-gray-100 h-[220px] overflow-y-auto">
                                   {s.history && s.history.length > 0 ? (
-                                    <div className="flex gap-2">
-                                      <div className="w-1 bg-blue-100 rounded" />
-                                      <div>
-                                        <p className="text-xs font-bold text-gray-800">{s.history[s.history.length - 1].status}</p>
-                                        <p className="text-[10px] text-gray-500 mt-1">{s.history[s.history.length - 1].note}</p>
-                                      </div>
+                                    <div className="relative pl-4 space-y-4 before:absolute before:left-[5px] before:top-2 before:bottom-2 before:w-px before:bg-gray-100">
+                                      {[...s.history].reverse().map((event, i) => (
+                                        <div key={i} className="relative">
+                                          <div className={`absolute -left-[14px] top-1.5 w-2 h-2 rounded-full border-2 border-white z-10 ${i === 0 ? 'bg-blue-600' : 'bg-gray-300'}`} />
+                                          <div className="flex justify-between items-start gap-4">
+                                            <div>
+                                              <p className={`text-[10px] font-bold uppercase tracking-tight ${i === 0 ? 'text-blue-600' : 'text-gray-900'}`}>
+                                                {event.status.replace('_', ' ')}
+                                              </p>
+                                              <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">{event.note}</p>
+                                              <p className="text-[9px] text-gray-400 mt-0.5 italic">{event.location}</p>
+                                            </div>
+                                            <p className="text-[9px] font-mono text-gray-400 whitespace-nowrap bg-gray-50 px-1 rounded">
+                                              {format(new Date(event.timestamp), 'MMM dd, HH:mm')}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ))}
                                     </div>
                                   ) : (
-                                    <p className="text-xs text-gray-400 italic">No history recorded.</p>
+                                    <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
+                                      <History className="w-8 h-8 text-gray-300 mb-2" />
+                                      <p className="text-[10px] font-bold text-gray-400 uppercase">No Event History Recorded</p>
+                                    </div>
                                   )}
                                 </div>
                                 <button 
                                   onClick={() => setSelectedShipment(s)}
-                                  className="w-full mt-4 py-2 bg-gray-900 text-white text-[10px] font-bold rounded uppercase tracking-widest hover:bg-gray-800 transition-colors"
+                                  className="w-full mt-2 py-2 bg-gray-900 text-white text-[10px] font-bold rounded uppercase tracking-widest hover:bg-gray-800 transition-colors"
                                 >
-                                  Open Full Tracking Page
+                                  Open Full Tracking Details
                                 </button>
                               </div>
                             </div>
