@@ -11,13 +11,26 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  console.log(`[SERVER] Starting in ${process.env.NODE_ENV || 'development'} mode`);
+
   app.use(cors());
   app.use(express.json());
 
   // Request logging
   app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Headers: ${JSON.stringify(req.headers)}`);
     next();
+  });
+
+  // Diagnostic route
+  app.get('/api/routes-check', (req, res) => {
+    const routes = app._router.stack
+      .filter((r: any) => r.route)
+      .map((r: any) => ({
+        path: r.route.path,
+        methods: Object.keys(r.route.methods)
+      }));
+    res.json(routes);
   });
 
   // Database setup
@@ -382,15 +395,25 @@ async function startServer() {
   });
 
   app.post('/api/auth/login', async (req, res) => {
+    console.log('[AUTH] Login route hit');
+    console.log('[AUTH] Body type:', typeof req.body);
+    console.log('[AUTH] Body keys:', Object.keys(req.body || {}));
+    
     const { email, password } = req.body;
-    console.log(`Login attempt for ${email}`);
+    console.log(`[AUTH] Login attempt for email: "${email}" with password length: ${password?.length || 0}`);
+    
+    if (!email || !password) {
+      console.log('[AUTH] Missing credentials in request body');
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
     try {
       const user = await db.get('SELECT * FROM users WHERE email = ? AND password = ?', [email, password]);
       if (!user) {
-        console.log(`Login failed for ${email}: Invalid credentials`);
+        console.log(`[AUTH] Login failed for ${email}: Invalid credentials`);
         return res.status(401).json({ error: 'Invalid credentials' });
       }
-      console.log(`Login success for ${email}: ${user.name} (${user.role})`);
+      console.log(`[AUTH] Login success for ${email}: ${user.name} (${user.role})`);
 
       const lastLogin = new Date().toISOString();
       await db.run('UPDATE users SET last_login = ? WHERE id = ?', [lastLogin, user.id]);
@@ -401,9 +424,13 @@ async function startServer() {
 
       res.json(user);
     } catch (err) {
-      console.error(`Login error for ${email}:`, err);
+      console.error(`[AUTH] Login error for ${email}:`, err);
       res.status(500).json({ error: 'Internal server error during authentication' });
     }
+  });
+
+  app.post('/api/login', (req, res) => {
+    res.status(405).json({ error: 'Please use /api/auth/login' });
   });
 
   app.get('/api/users', authMiddleware, adminMiddleware, async (req, res) => {
@@ -899,6 +926,12 @@ async function startServer() {
       [(req as any).user.id, (req as any).user.name, 'UPDATE_PERMISSION', `Updated ${feature} access for ${role} to ${enabled}`, new Date().toISOString()]
     );
     res.json({ success: true });
+  });
+
+  // API 404 Catch-all - to identify if requests miss the routes
+  app.all('/api/*', (req, res) => {
+    console.warn(`[SERVER] API Route not found: ${req.method} ${req.url}`);
+    res.status(404).json({ error: `Route ${req.method} ${req.url} not found on terminal server.` });
   });
 
   // Vite integration
