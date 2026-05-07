@@ -1,35 +1,45 @@
-# SwiftConnect - Logistics & Fleet Terminal
+# SwiftConnect Logistics & Fleet Terminal
 
-SwiftConnect is a professional logistics management platform designed for tracking shipments, managing fleet operations, and revenue governance.
+SwiftConnect is a modern, full-stack logistics management platform built for speed, transparency, and operational efficiency. It provides real-time tracking, fleet telemetry, inventory management, and financial reporting in a unified terminal interface.
 
-## Features
+## 🚀 Key Features
+- **Real-time Dashboard**: Live statistics computed from a database including On-Time Delivery (OTD) rates and active shipments.
+- **Fleet Control**: Dynamic telemetry map with vehicle health monitoring and diagnostic tools.
+- **Intelligent Shipments**: Full lifecycle tracking from creation to driver assignment and final delivery.
+- **Inventory Matrix**: SKU tracking with location-based stock management.
+- **Role-Based Access**: Specialized views for Administrators, Coordinators, and Drivers.
+- **Financial Module**: Expense tracking and revenue visualization.
 
-- **Dashboard**: Real-time overview of fleet metrics and delivery performance.
-- **Shipments**: Comprehensive tracking system with status monitoring.
-- **Task Management**: Kanban-style operations board for teams.
-- **Fleet Monitoring**: IoT-ready vehicle telemetry and status tracking.
-- **Responsive Design**: Built with Tailwind CSS and Framer Motion for a polished experience.
+## 🛠 Tech Stack
+- **Frontend**: React 18 (Vite), Tailwind CSS, Lucide Icons, Framer Motion, Recharts.
+- **Backend**: Node.js (Express), SQLite (better-sqlite3).
+- **Authentication**: Custom JWT-ready context with session persistence.
+- **Database**: Relational SQLite schema with audit logging.
 
-## Tech Stack
+## 📥 Local Setup
 
-- **Frontend**: React 18, Vite, TypeScript
-- **Styling**: Tailwind CSS
-- **Animations**: Framer Motion
-- **Icons**: Lucide React
-- **Database**: SQLite with `better-sqlite3` handled via an Express.js backend.
-- **Reporting**: Advanced revenue analytics and SKU performance governance.
+1. **Clone the repository**:
+   ```bash
+   git clone <your-repo-url>
+   cd swiftconnect
+   ```
 
-## Getting Started
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-1. Clone the repository.
-2. Install dependencies: `npm install`
-3. Run the development server: `npm run dev` (Starts both Vite and Express backend).
+3. **Start the development server**:
+   ```bash
+   npm run dev
+   ```
+   The terminal will be accessible at `http://localhost:3000`.
 
-## Deployment
+## 🏗 Deployment
+This application is designed to be deployed using **Docker** or standard **Node.js hosting**. 
 
-### Full-Stack (Recommended)
-This app includes an Express server and SQLite database. For full functionality, deploy to a platform that supports Node.js (e.g., Cloud Run, Heroku, Railway).
+- The backend serves the static frontend files from the `dist/` directory in production mode.
+- Ensure the `database.sqlite` file has write permissions in your deployment environment.
 
-### Static Frontend (GitHub Pages)
-A GitHub Actions workflow is included in `.github/workflows/static.yml`. 
-*Note: The frontend will be functional, but server-dependent features (API, Database) will require a hosted API endpoint.*
+## 📜 License
+MIT License - feel free to use for personal or commercial projects.
