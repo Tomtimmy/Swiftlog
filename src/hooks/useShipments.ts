@@ -5,26 +5,28 @@ import { useAuth } from './useAuth';
 export function useShipments() {
   const { user } = useAuth();
   const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [drivers, setDrivers] = useState<{id: string, name: string}[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchShipments = async () => {
+  const fetchData = async () => {
     if (!user) return;
     try {
-      const res = await fetch('/api/shipments', {
-        headers: { 'x-user-id': user.uid }
-      });
-      if (res.ok) {
-        setShipments(await res.json());
-      }
+      const [shipRes, driverRes] = await Promise.all([
+        fetch('/api/shipments', { headers: { 'x-user-id': user.uid } }),
+        fetch('/api/drivers', { headers: { 'x-user-id': user.uid } })
+      ]);
+      
+      if (shipRes.ok) setShipments(await shipRes.json());
+      if (driverRes.ok) setDrivers(await driverRes.json());
     } catch (err) {
-      console.error('Failed to fetch shipments', err);
+      console.error('Failed to fetch shipments data', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchShipments();
+    fetchData();
   }, [user?.uid]);
 
   const updateStatus = async (id: string, status: ShipmentStatus) => {
@@ -39,7 +41,7 @@ export function useShipments() {
         body: JSON.stringify({ status })
       });
       if (res.ok) {
-        await fetchShipments();
+        await fetchData();
       }
     } catch (err) {
       console.error('Failed to update shipment status', err);
@@ -61,13 +63,5 @@ export function useShipments() {
     }
   };
 
-  const MOCK_DRIVERS = [
-    { id: 'DRV-001', name: 'Marco Rossi' },
-    { id: 'DRV-002', name: 'Elena Petrova' },
-    { id: 'DRV-003', name: 'Sam Wilson' },
-    { id: 'DRV-004', name: 'Tanaka Ken' },
-    { id: 'DRV-005', name: 'Sarah Miller' },
-  ];
-
-  return { shipments, loading, updateStatus, assignDriver, updateLocation, bulkUpdateStatus, drivers: MOCK_DRIVERS };
+  return { shipments, loading, updateStatus, assignDriver, updateLocation, bulkUpdateStatus, drivers, refresh: fetchData };
 }

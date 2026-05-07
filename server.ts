@@ -136,6 +136,21 @@ async function startServer() {
         timestamp TEXT
       );
 
+      CREATE TABLE IF NOT EXISTS expenses (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT,
+        user_id TEXT,
+        amount REAL,
+        currency TEXT,
+        category TEXT,
+        description TEXT,
+        vendor TEXT,
+        date TEXT,
+        status TEXT,
+        created_at TEXT,
+        updated_at TEXT
+      );
+
       CREATE TABLE IF NOT EXISTS vehicles (
         id TEXT PRIMARY KEY,
         tenant_id TEXT,
@@ -265,6 +280,21 @@ async function startServer() {
       await db.run(
         'INSERT INTO vehicles (id, tenant_id, name, plate, driver_name, driver_id, status, battery, temp, location, current_lat, current_lng, last_update) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         v
+      );
+    }
+  }
+
+  // Seed expenses if empty
+  const expensesCount = await db.get('SELECT COUNT(*) as count FROM expenses');
+  if (expensesCount.count === 0) {
+    const initialExpenses = [
+      ['EXP-001', 'TENANT-001', 'USR-004', 150.50, 'USD', 'Travel', 'Uber to Airport', 'Uber', '2026-05-01', 'RECEIVED', '2026-05-01T09:00:00Z', '2026-05-04T10:00:00Z'],
+      ['EXP-002', 'TENANT-001', 'USR-001', 45.00, 'USD', 'Food', 'Client Lunch', 'Starbucks', '2026-05-03', 'APPROVED', '2026-05-03T13:00:00Z', '2026-05-04T09:00:00Z']
+    ];
+    for (const e of initialExpenses) {
+      await db.run(
+        'INSERT INTO expenses (id, tenant_id, user_id, amount, currency, category, description, vendor, date, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        e
       );
     }
   }
@@ -547,6 +577,54 @@ async function startServer() {
     res.json({ success: true, lastUpdate });
   });
 
+  // Finance API
+  app.get('/api/finance/expenses', authMiddleware, async (req: any, res) => {
+    const user = req.user;
+    let query = 'SELECT * FROM expenses WHERE tenant_id = ?';
+    let params = [user.tenant_id];
+    
+    // Non-admins only see their own expenses or those in their location
+    if (user.role !== 'ADMIN' && user.role !== 'COORDINATOR') {
+      query += ' AND user_id = ?';
+      params.push(user.id);
+    }
+    
+    const expenses = await db.all(query, params);
+    res.json(expenses);
+  });
+
+  app.post('/api/finance/expenses', authMiddleware, async (req: any, res) => {
+    const user = req.user;
+    const { vendor, amount, currency, category, description, date } = req.body;
+    const id = `EXP-${Date.now()}`;
+    const createdAt = new Date().toISOString();
+    
+    await db.run(
+      'INSERT INTO expenses (id, tenant_id, user_id, amount, currency, category, description, vendor, date, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, user.tenant_id, user.id, amount, currency || 'USD', category, description, vendor, date, 'PENDING', createdAt, createdAt]
+    );
+    
+    res.json({ id, status: 'PENDING' });
+  });
+
+  app.put('/api/finance/expenses/:id/status', authMiddleware, async (req: any, res) => {
+    const user = req.user;
+    const { status } = req.body;
+    const updatedAt = new Date().toISOString();
+    
+    // Only admins/coordinators can approve/reject, unless it's a driver confirming receipt
+    const expense = await db.get('SELECT * FROM expenses WHERE id = ?', [req.params.id]);
+    if (!expense) return res.status(404).json({ error: 'Expense not found' });
+    
+    const isApproval = status === 'APPROVED' || status === 'REJECTED' || status === 'SENT';
+    if (isApproval && user.role !== 'ADMIN' && user.role !== 'COORDINATOR') {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+    
+    await db.run('UPDATE expenses SET status = ?, updated_at = ? WHERE id = ?', [status, updatedAt, req.params.id]);
+    res.json({ success: true, updatedAt });
+  });
+
   // Dashboard API
   app.get('/api/dashboard/stats', authMiddleware, async (req: any, res) => {
     const user = req.user;
@@ -688,6 +766,11 @@ async function startServer() {
   app.get('/api/audit-logs', authMiddleware, adminMiddleware, async (req, res) => {
     const logs = await db.all('SELECT * FROM audit_logs ORDER BY id DESC LIMIT 100');
     res.json(logs);
+  });
+
+  app.get('/api/drivers', authMiddleware, async (req: any, res) => {
+    const drivers = await db.all('SELECT id, name FROM users WHERE role = "DRIVER" AND tenant_id = ?', [req.user.tenant_id]);
+    res.json(drivers);
   });
   
   app.put('/api/profile', authMiddleware, async (req, res) => {
