@@ -5,12 +5,37 @@ import { useInventory, InventoryItem } from '../hooks/useInventory';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Inventory() {
-  const { items, loading, updatePrice } = useInventory();
+  const { items, loading, updatePrice, addItem } = useInventory();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [newPrice, setNewPrice] = useState<string>('');
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
+  const [newItem, setNewItem] = useState({
+    name: '',
+    sku: '',
+    category: '',
+    quantity: 0,
+    price: 0,
+    unit: 'unit',
+    location: user?.location || 'HQ'
+  });
+
+  const handleAddItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await (addItem as any)(newItem);
+    setIsAddItemModalOpen(false);
+    setNewItem({
+      name: '',
+      sku: '',
+      category: '',
+      quantity: 0,
+      price: 0,
+      unit: 'unit',
+      location: user?.location || 'HQ'
+    });
+  };
 
   const isManager = user?.role === 'ADMIN' || user?.role === 'COORDINATOR';
 
@@ -57,6 +82,15 @@ export default function Inventory() {
         </div>
         
         <div className="flex items-center gap-3">
+          {isManager && (
+            <button 
+              onClick={() => setIsAddItemModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              <Package className="w-4 h-4" />
+              Add Stock Item
+            </button>
+          )}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input 
@@ -130,6 +164,107 @@ export default function Inventory() {
       </div>
 
       <AnimatePresence>
+        {isAddItemModalOpen && (
+          <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-200"
+            >
+              <div className="p-6 bg-blue-600 text-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Package className="w-6 h-6" />
+                    <h3 className="text-lg font-bold">New Inventory Protocol</h3>
+                  </div>
+                  <button onClick={() => setIsAddItemModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <form onSubmit={handleAddItem} className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Product Name</label>
+                    <input 
+                      required
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                      value={newItem.name}
+                      onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">SKU Identifier</label>
+                    <input 
+                      required
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono outline-none focus:ring-1 focus:ring-blue-500"
+                      value={newItem.sku}
+                      onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Category</label>
+                    <input 
+                      required
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                      value={newItem.category}
+                      onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Unit Type</label>
+                    <input 
+                      required
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                      value={newItem.unit}
+                      onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Base Price ($)</label>
+                    <input 
+                      required
+                      type="number"
+                      step="0.01"
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono outline-none focus:ring-1 focus:ring-blue-500"
+                      value={newItem.price}
+                      onChange={(e) => setNewItem({ ...newItem, price: parseFloat(e.target.value) })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Initial Stock</label>
+                    <input 
+                      required
+                      type="number"
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono outline-none focus:ring-1 focus:ring-blue-500"
+                      value={newItem.quantity}
+                      onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) })}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setIsAddItemModalOpen(false)}
+                    className="flex-1 py-3 bg-gray-50 text-gray-600 text-xs font-bold rounded-xl hover:bg-gray-100 transition-colors uppercase tracking-widest"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    className="flex-1 py-3 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100 uppercase tracking-widest"
+                  >
+                    Register Product
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
         {editingItem && (
           <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <motion.div 

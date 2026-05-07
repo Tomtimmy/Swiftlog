@@ -3,9 +3,32 @@ import { Truck, MapPin, Battery, Thermometer, ShieldCheck, AlertCircle, Activity
 import { motion } from 'motion/react';
 import { useFleet } from '../hooks/useFleet';
 
+import Modal from '../components/Modal';
+import { useAuth } from '../hooks/useAuth';
+
 export default function Fleet() {
-  const { vehicles, loading, updateTelemetry } = useFleet();
+  const { vehicles, loading, updateTelemetry, addVehicle } = useFleet();
+  const { user } = useAuth();
   const [movingVehicles, setMovingVehicles] = useState<any[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newVehicle, setNewVehicle] = useState({
+    name: '',
+    plate: '',
+    driverName: '',
+    location: user?.location || 'HQ'
+  });
+
+  const handleAddVehicle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await (addVehicle as any)(newVehicle);
+    setIsModalOpen(false);
+    setNewVehicle({
+      name: '',
+      plate: '',
+      driverName: '',
+      location: user?.location || 'HQ'
+    });
+  };
 
   useEffect(() => {
     if (vehicles.length > 0) {
@@ -52,7 +75,10 @@ export default function Fleet() {
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-bold text-emerald-700 uppercase tracking-tighter">Live Telemetry</span>
           </div>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition shadow-sm">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition shadow-sm"
+          >
             Registry Master
           </button>
         </div>
@@ -165,6 +191,70 @@ export default function Fleet() {
           )}
         </div>
       </div>
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Fleet Registry - New Asset Onboarding"
+      >
+        <form onSubmit={handleAddVehicle} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Vehicle Model</label>
+              <input 
+                required
+                className="technical-input w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="e.g. Scania R500"
+                value={newVehicle.name}
+                onChange={(e) => setNewVehicle({ ...newVehicle, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">License Plate</label>
+              <input 
+                required
+                className="technical-input w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="e.g. TX-9921"
+                value={newVehicle.plate}
+                onChange={(e) => setNewVehicle({ ...newVehicle, plate: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Primary Driver Name</label>
+              <input 
+                className="technical-input w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="Pilot name (if known)"
+                value={newVehicle.driverName}
+                onChange={(e) => setNewVehicle({ ...newVehicle, driverName: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Base Hub</label>
+              <input 
+                className="technical-input w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="e.g. HQ"
+                value={newVehicle.location}
+                onChange={(e) => setNewVehicle({ ...newVehicle, location: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="pt-4 flex gap-3">
+            <button 
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="flex-1 py-3 bg-gray-50 text-gray-600 text-[10px] font-bold rounded-lg hover:bg-gray-100 transition-colors uppercase tracking-widest"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              className="flex-1 py-3 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100 uppercase tracking-widest"
+            >
+              Authorize Asset
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -48,13 +48,62 @@ export function useShipments() {
     }
   };
 
+  const addShipment = async (data: any) => {
+    if (!user) return;
+    try {
+      const res = await fetch('/api/shipments', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': user.uid 
+        },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        await fetchData();
+        return await res.json();
+      }
+    } catch (err) {
+      console.error('Failed to create shipment', err);
+    }
+  };
+
   const assignDriver = async (id: string, driverId: string) => {
-    // Note: Implementation for driver assignment would follow same pattern
-    console.log('Driver assignment intended for', id, driverId);
+    if (!user) return;
+    try {
+      const res = await fetch(`/api/shipments/${id}/assign`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': user.uid 
+        },
+        body: JSON.stringify({ driverId })
+      });
+      if (res.ok) {
+        await fetchData();
+      }
+    } catch (err) {
+      console.error('Failed to assign driver', err);
+    }
   };
 
   const updateLocation = async (id: string, field: 'origin' | 'destination', value: string) => {
-    console.log('Location update intended for', id, field, value);
+    if (!user) return;
+    try {
+      const res = await fetch(`/api/shipments/${id}/location`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': user.uid 
+        },
+        body: JSON.stringify({ field, value })
+      });
+      if (res.ok) {
+        await fetchData();
+      }
+    } catch (err) {
+      console.error('Failed to update location', err);
+    }
   };
 
   const bulkUpdateStatus = async (ids: string[], status: ShipmentStatus) => {
@@ -63,5 +112,5 @@ export function useShipments() {
     }
   };
 
-  return { shipments, loading, updateStatus, assignDriver, updateLocation, bulkUpdateStatus, drivers, refresh: fetchData };
+  return { shipments, loading, updateStatus, addShipment, assignDriver, updateLocation, bulkUpdateStatus, drivers, refresh: fetchData };
 }

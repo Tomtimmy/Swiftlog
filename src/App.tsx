@@ -77,7 +77,7 @@ export default function App() {
               </div>
             ) : (
               <>
-                {activeTab === 'dashboard' && <Dashboard />}
+                {activeTab === 'dashboard' && <Dashboard onNavigate={setActiveTab} />}
                 {activeTab === 'shipments' && <Shipments />}
                 {activeTab === 'inventory' && <Inventory />}
                 {activeTab === 'tasks' && <Tasks />}

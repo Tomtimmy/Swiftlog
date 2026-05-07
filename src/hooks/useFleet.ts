@@ -60,5 +60,25 @@ export function useFleet() {
     }
   };
 
-  return { vehicles, loading, updateTelemetry, refresh: fetchVehicles };
+  const addVehicle = async (data: any) => {
+    if (!user) return;
+    try {
+      const res = await fetch('/api/fleet', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': user.uid 
+        },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        await fetchVehicles();
+        return await res.json();
+      }
+    } catch (err) {
+      console.error('Failed to add vehicle', err);
+    }
+  };
+
+  return { vehicles, loading, updateTelemetry, addVehicle, refresh: fetchVehicles };
 }

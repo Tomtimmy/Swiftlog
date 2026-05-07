@@ -458,13 +458,66 @@ async function startServer() {
     res.json(parsedShipments);
   });
 
+  app.post('/api/shipments', authMiddleware, async (req: any, res) => {
+    const user = req.user;
+    const { origin, destination, estimatedDelivery, trackingNumber } = req.body;
+    const id = `SH-${Date.now()}`;
+    const tn = trackingNumber || `SW-${Math.floor(10000 + Math.random() * 90000)}-${id.slice(-1)}`;
+    const createdAt = new Date().toISOString();
+    
+    const history = JSON.stringify([{
+      status: 'PENDING',
+      note: 'Shipment created and awaiting pickup.',
+      location: origin,
+      timestamp: createdAt
+    }]);
+
+    await db.run(
+      'INSERT INTO shipments (id, tenant_id, tracking_number, origin, destination, status, estimated_delivery, current_lat, current_lng, location, history, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, user.tenant_id, tn, origin, destination, 'PENDING', estimatedDelivery, 40.7128, -74.0060, origin, history, createdAt, createdAt]
+    );
+
+    res.json({ id, trackingNumber: tn });
+  });
+
   app.put('/api/shipments/:id', authMiddleware, async (req, res) => {
-    const { status, location: currentLoc } = req.body;
+    const { status, location: currentLoc, note } = req.body;
+    const updatedAt = new Date().toISOString();
+    
+    const shipment = await db.get('SELECT history FROM shipments WHERE id = ?', [req.params.id]);
+    const history = JSON.parse(shipment.history || '[]');
+    history.push({
+      status,
+      note: note || `Status updated to ${status}`,
+      location: currentLoc || 'Transit Point',
+      timestamp: updatedAt
+    });
+
+    await db.run(
+      'UPDATE shipments SET status = ?, location = ?, history = ?, updated_at = ? WHERE id = ?',
+      [status, currentLoc || 'Transit Point', JSON.stringify(history), updatedAt, req.params.id]
+    );
+    res.json({ success: true, updatedAt });
+  });
+
+  app.put('/api/shipments/:id/assign', authMiddleware, async (req: any, res) => {
+    const { driverId } = req.body;
     const updatedAt = new Date().toISOString();
     await db.run(
-      'UPDATE shipments SET status = ?, location = ?, updated_at = ? WHERE id = ?',
-      [status, currentLoc, updatedAt, req.params.id]
+      'UPDATE shipments SET assigned_driver_id = ?, updated_at = ? WHERE id = ?',
+      [driverId, updatedAt, req.params.id]
     );
+    res.json({ success: true, updatedAt });
+  });
+
+  app.put('/api/shipments/:id/location', authMiddleware, async (req, res) => {
+    const { field, value } = req.body;
+    const updatedAt = new Date().toISOString();
+    if (field === 'origin') {
+      await db.run('UPDATE shipments SET origin = ?, updated_at = ? WHERE id = ?', [value, updatedAt, req.params.id]);
+    } else {
+      await db.run('UPDATE shipments SET destination = ?, updated_at = ? WHERE id = ?', [value, updatedAt, req.params.id]);
+    }
     res.json({ success: true, updatedAt });
   });
 
@@ -517,6 +570,27 @@ async function startServer() {
     res.json(items);
   });
 
+  app.post('/api/inventory', authMiddleware, async (req: any, res) => {
+    const user = req.user;
+    const { name, sku, category, quantity, price, unit, location } = req.body;
+    const id = `INV-${Date.now()}`;
+    const updatedAt = new Date().toISOString();
+    
+    await db.run(
+      'INSERT INTO inventories (id, tenant_id, sku, name, category, quantity, price, unit, location, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, user.tenant_id, sku, name, category, quantity || 0, price || 0, unit || 'unit', location || user.location, updatedAt]
+    );
+
+    res.json({ id, sku });
+  });
+
+  app.put('/api/inventory/:id/stock', authMiddleware, async (req: any, res) => {
+    const { quantity } = req.body;
+    const updatedAt = new Date().toISOString();
+    await db.run('UPDATE inventories SET quantity = ?, updated_at = ? WHERE id = ?', [quantity, updatedAt, req.params.id]);
+    res.json({ success: true, updatedAt });
+  });
+
   app.put('/api/inventory/:id/price', authMiddleware, async (req, res) => {
     const { price, name } = req.body;
     const user = (req as any).user;
@@ -565,6 +639,20 @@ async function startServer() {
     const user = req.user;
     const vehicles = await db.all('SELECT * FROM vehicles WHERE tenant_id = ?', [user.tenant_id]);
     res.json(vehicles);
+  });
+
+  app.post('/api/fleet', authMiddleware, async (req: any, res) => {
+    const user = req.user;
+    const { name, plate, driverName, driverId, location } = req.body;
+    const id = `VK-${Math.floor(100 + Math.random() * 900)}`;
+    const lastUpdate = new Date().toISOString();
+    
+    await db.run(
+      'INSERT INTO vehicles (id, tenant_id, name, plate, driver_name, driver_id, status, battery, temp, location, current_lat, current_lng, last_update) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, user.tenant_id, name, plate, driverName || 'Unassigned', driverId || null, 'IDLE', '100%', '20°C', location || 'Depot', 40.7128, -74.0060, lastUpdate]
+    );
+
+    res.json({ id, plate });
   });
 
   app.put('/api/fleet/:id/telemetry', authMiddleware, async (req: any, res) => {

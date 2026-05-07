@@ -55,7 +55,7 @@ const ShipmentMarker: React.FC<{ shipment: Shipment; onClick: () => void }> = ({
 };
 
 export default function Shipments() {
-  const { shipments, loading, updateStatus, assignDriver, updateLocation, bulkUpdateStatus, drivers } = useShipments();
+  const { shipments, loading, updateStatus, assignDriver, updateLocation, bulkUpdateStatus, addShipment, drivers } = useShipments();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [originFilter, setOriginFilter] = useState<string>('ALL');
@@ -83,6 +83,26 @@ export default function Shipments() {
       direction = 'desc';
     }
     setSortConfig({ key, direction });
+  };
+
+  const [isNewShipmentModalOpen, setIsNewShipmentModalOpen] = useState(false);
+  const [newShipment, setNewShipment] = useState({
+    origin: '',
+    destination: '',
+    estimatedDelivery: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+    trackingNumber: ''
+  });
+
+  const handleCreateShipment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await (addShipment as any)(newShipment);
+    setIsNewShipmentModalOpen(false);
+    setNewShipment({
+      origin: '',
+      destination: '',
+      estimatedDelivery: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+      trackingNumber: ''
+    });
   };
 
   const { origins, destinations } = useMemo(() => {
@@ -229,7 +249,10 @@ export default function Shipments() {
             <Download className="w-4 h-4" />
             Export CSV
           </button>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">
+          <button 
+            onClick={() => setIsNewShipmentModalOpen(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+          >
             New Shipment
           </button>
         </div>
@@ -709,6 +732,75 @@ export default function Shipments() {
       )}
 
       <Modal
+        isOpen={isNewShipmentModalOpen}
+        onClose={() => setIsNewShipmentModalOpen(false)}
+        title="Create New Freight Assignment"
+      >
+        <form onSubmit={handleCreateShipment} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Origin Hub</label>
+              <input 
+                required
+                type="text" 
+                placeholder="e.g. New York Port"
+                className="technical-input w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded focus:border-blue-500 outline-none"
+                value={newShipment.origin}
+                onChange={(e) => setNewShipment({ ...newShipment, origin: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Destination Hub</label>
+              <input 
+                required
+                type="text" 
+                placeholder="e.g. London Gateway"
+                className="technical-input w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded focus:border-blue-500 outline-none"
+                value={newShipment.destination}
+                onChange={(e) => setNewShipment({ ...newShipment, destination: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Estimated Delivery</label>
+              <input 
+                required
+                type="datetime-local" 
+                className="technical-input w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded focus:border-blue-500 outline-none"
+                value={newShipment.estimatedDelivery}
+                onChange={(e) => setNewShipment({ ...newShipment, estimatedDelivery: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Tracking Override (Optional)</label>
+              <input 
+                type="text" 
+                placeholder="Auto-generated if empty"
+                className="technical-input w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded focus:border-blue-500 outline-none"
+                value={newShipment.trackingNumber}
+                onChange={(e) => setNewShipment({ ...newShipment, trackingNumber: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="pt-4 flex gap-3">
+            <button 
+              type="button"
+              onClick={() => setIsNewShipmentModalOpen(false)}
+              className="flex-1 py-3 bg-gray-50 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-100 transition-colors uppercase tracking-widest"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              className="flex-1 py-3 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-100 uppercase tracking-widest"
+            >
+              Deploy Shipment
+              <CheckCircle className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
         isOpen={!!selectedShipment}
         onClose={() => setSelectedShipment(null)}
         title={`Shipment ${selectedShipment?.trackingNumber}`}
@@ -800,35 +892,26 @@ export default function Shipments() {
         {assignConfirmation && (
           <div className="space-y-6">
             <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
-              <div className="flex items-center gap-3">
-                <UserPlus className="w-5 h-5 text-blue-600" />
-                <div>
-                  <p className="text-sm font-bold text-blue-900 border-none">Assign {assignConfirmation.driverName}?</p>
-                  <p className="text-[10px] text-blue-600 uppercase font-bold tracking-widest mt-0.5">
-                    Shipment: {assignConfirmation.trackingNumber}
-                  </p>
-                </div>
-              </div>
+              <p className="text-sm text-blue-800 leading-relaxed">
+                Assign driver <span className="font-bold underline">{assignConfirmation.driverName}</span> to 
+                shipment <span className="font-mono font-bold">{assignConfirmation.trackingNumber}</span>?
+              </p>
+              <p className="text-[10px] text-blue-600 mt-2 italic font-medium uppercase tracking-wider">Note: This will notify the driver terminal immediately via secure 5G link.</p>
             </div>
-
-            <p className="text-sm text-gray-600 leading-relaxed">
-              Are you sure you want to assign <strong>{assignConfirmation.driverName}</strong> to shipment <strong>{assignConfirmation.trackingNumber}</strong>? 
-              This will update the shipment records and notify relevant stakeholders.
-            </p>
-
-            <div className="flex gap-3 pt-2">
+            
+            <div className="flex gap-3">
               <button 
-                className="flex-1 py-2.5 bg-gray-50 text-gray-600 text-sm font-bold rounded-lg hover:bg-gray-100 transition-colors"
                 onClick={() => setAssignConfirmation(null)}
+                className="flex-1 py-2.5 bg-gray-50 text-gray-600 text-xs font-bold rounded hover:bg-gray-100 transition-colors uppercase tracking-widest"
               >
                 Cancel
               </button>
               <button 
-                className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-100"
                 onClick={() => {
                   assignDriver(assignConfirmation.shipmentId, assignConfirmation.driverId);
                   setAssignConfirmation(null);
                 }}
+                className="flex-1 py-2.5 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 transition-colors shadow-sm uppercase tracking-widest"
               >
                 Confirm Assignment
               </button>

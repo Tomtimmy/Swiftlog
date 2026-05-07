@@ -60,5 +60,46 @@ export function useInventory() {
     }
   };
 
-  return { items, loading, updatePrice, refresh: fetchInventory };
+  const addItem = async (data: Omit<InventoryItem, 'id' | 'updated_at'>) => {
+    if (!user) return;
+    try {
+      const res = await fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': user.uid 
+        },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        await fetchInventory();
+        return await res.json();
+      }
+    } catch (err) {
+      console.error('Failed to add item', err);
+    }
+  };
+
+  const updateStock = async (id: string, quantity: number) => {
+    if (!user) return;
+    try {
+      const res = await fetch(`/api/inventory/${id}/stock`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': user.uid 
+        },
+        body: JSON.stringify({ quantity })
+      });
+      if (res.ok) {
+        await fetchInventory();
+        return true;
+      }
+    } catch (err) {
+      console.error('Failed to update stock', err);
+      return false;
+    }
+  };
+
+  return { items, loading, updatePrice, addItem, updateStock, refresh: fetchInventory };
 }

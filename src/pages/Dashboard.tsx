@@ -23,7 +23,7 @@ import {
   Area
 } from 'recharts';
 
-export default function Dashboard() {
+export default function Dashboard({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const { user } = useAuth();
   const { shipments, loading: shipLoading } = useShipments();
   const [stats, setStats] = useState<any>(null);
@@ -32,6 +32,23 @@ export default function Dashboard() {
 
   const isDriver = user?.role === 'DRIVER';
   const isAdmin = user?.role === 'ADMIN';
+
+  const handleCreateShipment = () => {
+    if (onNavigate) {
+      onNavigate('shipments');
+    }
+  };
+
+  const handleExportData = () => {
+    const data = JSON.stringify({ stats, shipments, revenueData }, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `swiftconnect-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -81,10 +98,16 @@ export default function Dashboard() {
         <div className="flex gap-2">
           {!isDriver && (
             <>
-              <button className="px-4 py-2 bg-white border border-gray-200 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors">
+              <button 
+                onClick={handleExportData}
+                className="px-4 py-2 bg-white border border-gray-200 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
                 Export Data
               </button>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">
+              <button 
+                onClick={handleCreateShipment}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+              >
                 Create Shipment
               </button>
             </>
