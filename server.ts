@@ -121,7 +121,7 @@ async function startServer() {
       CREATE TABLE IF NOT EXISTS inventories (
         id TEXT PRIMARY KEY,
         tenant_id TEXT,
-        sku TEXT UNIQUE,
+        sku TEXT,
         name TEXT,
         category TEXT,
         quantity INTEGER DEFAULT 0,
@@ -588,13 +588,13 @@ async function startServer() {
   });
 
   app.post('/api/tasks', authMiddleware, async (req, res) => {
-    const { title, description, priority, location, is_personal } = req.body;
+    const { title, description, priority, location, is_personal, assignedUserId } = req.body;
     const id = `T-${Date.now()}`;
     const user = (req as any).user;
     const createdAt = new Date().toISOString();
     await db.run(
       'INSERT INTO tasks (id, tenant_id, title, description, priority, status, assigned_user_id, location, is_personal, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, user.tenant_id, title, description, priority || 'MEDIUM', 'TODO', user.id, location || user.location, is_personal ? 1 : 0, createdAt, createdAt]
+      [id, user.tenant_id, title, description, priority || 'MEDIUM', 'TODO', assignedUserId || user.id, location || user.location, is_personal ? 1 : 0, createdAt, createdAt]
     );
     res.json({ id, title, createdAt });
   });

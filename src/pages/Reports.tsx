@@ -47,10 +47,39 @@ export default function Reports() {
     units: s.total_units
   })) || [];
 
+  const handleExportAudit = () => {
+    if (!reportData) return;
+    const headers = ['SKU', 'Name', 'Units Sold', 'Revenue', 'Stock', 'S-T-S Ratio'];
+    const rows = reportData.performance.map(p => [
+      p.sku,
+      p.name,
+      p.units_sold,
+      p.revenue,
+      p.current_stock,
+      p.stock_to_sales_ratio.toFixed(2)
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `system_audit_${new Date().toISOString().split('T')[0]}.csv`);
+    link.click();
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-8 pb-12 print:p-0">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 print:hidden">
         <div>
           <h1 className="text-2xl font-black text-navy-logistics tracking-tighter flex items-center gap-3 uppercase">
             <BarChart3 className="w-8 h-8 text-electric-orange" />
@@ -63,11 +92,17 @@ export default function Reports() {
         </div>
         
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-industrial hover:bg-gray-50 transition-all">
+          <button 
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-industrial hover:bg-gray-50 transition-all"
+          >
             <Printer className="w-3.5 h-3.5" />
             Print Ledger
           </button>
-          <button className="flex items-center gap-2 px-5 py-2.5 bg-navy-logistics text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-opacity-90 shadow-lg shadow-navy-logistics/20 transition-all">
+          <button 
+            onClick={handleExportAudit}
+            className="flex items-center gap-2 px-5 py-2.5 bg-navy-logistics text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-opacity-90 shadow-lg shadow-navy-logistics/20 transition-all"
+          >
             <Download className="w-3.5 h-3.5" />
             Export System Audit
           </button>

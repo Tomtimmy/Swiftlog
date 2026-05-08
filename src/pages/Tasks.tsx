@@ -1,17 +1,27 @@
 import React, { useState } from 'react';
 import { useTasks } from '../hooks/useTasks';
+import { useShipments } from '../hooks/useShipments';
 import { PriorityBadge } from '../components/Badges';
-import { CheckCircle2, Circle, Clock, User, AlertCircle, Save } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, User, AlertCircle, Save, Plus } from 'lucide-react';
 import Modal from '../components/Modal';
+import TaskCreateModal from '../components/TaskCreateModal';
 import { Task, TaskPriority, TaskStatus } from '../types';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Tasks() {
-  const { tasks, loading, moveTask, addPersonalTask, isOffline } = useTasks();
+  const { tasks, loading, moveTask, addPersonalTask, createTask, isOffline } = useTasks();
+  const { drivers } = useShipments();
+  const { user } = useAuth();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showPersonalOnly, setShowPersonalOnly] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newPersonalTitle, setNewPersonalTitle] = useState('');
 
-  const filteredTasks = showPersonalOnly ? tasks.filter(t => t.isPersonal) : tasks;
+  const isManager = user?.role === 'ADMIN' || user?.role === 'COORDINATOR';
+
+  const filteredTasks = showPersonalOnly 
+    ? tasks.filter(t => t.isPersonal) 
+    : tasks;
 
   const columns = [
     { id: 'TODO', label: 'To Do', icon: Circle, color: 'text-gray-400' },
@@ -46,11 +56,20 @@ export default function Tasks() {
           <p className="text-gray-500 text-sm">Daily operations and personal productivity planner</p>
         </div>
         <div className="flex gap-2">
+          {isManager && (
+            <button 
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Operational Task
+            </button>
+          )}
           <button 
             onClick={() => setShowPersonalOnly(!showPersonalOnly)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${showPersonalOnly ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 border border-gray-200'}`}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${showPersonalOnly ? 'bg-white border-2 border-indigo-600 text-indigo-600' : 'bg-white text-gray-700 border border-gray-200'}`}
           >
-            {showPersonalOnly ? 'All Tasks' : 'Personal Planner'}
+            {showPersonalOnly ? 'View All / Global' : 'Local Personal Planner'}
           </button>
         </div>
       </div>
@@ -187,6 +206,13 @@ export default function Tasks() {
           </div>
         )}
       </Modal>
+
+      <TaskCreateModal 
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        drivers={drivers}
+        onCreate={createTask}
+      />
     </div>
   );
 }

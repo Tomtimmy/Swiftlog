@@ -14,6 +14,8 @@ import { Shipment, ShipmentStatus } from '../types';
 import Modal from '../components/Modal';
 import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow, useAdvancedMarkerRef } from '@vis.gl/react-google-maps';
 
+import ShipmentUpdateModal from '../components/ShipmentUpdateModal';
+
 type SortConfig = { key: keyof Shipment | 'eta' | 'driver'; direction: 'asc' | 'desc' } | null;
 
 const API_KEY = process.env.GOOGLE_MAPS_PLATFORM_KEY || '';
@@ -67,6 +69,7 @@ export default function Shipments() {
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [sortConfig, setSortConfig] = useState<SortConfig>(null);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
+  const [updatingShipment, setUpdatingShipment] = useState<Shipment | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedShipmentIds, setExpandedShipmentIds] = useState<Set<string>>(new Set());
   const [editingCell, setEditingCell] = useState<{ id: string, field: 'origin' | 'destination', value: string } | null>(null);
@@ -557,33 +560,13 @@ export default function Shipments() {
                           </div>
                         </td>
                         <td className="data-grid-cell" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center gap-2">
-                            {s.status === 'PENDING' && (
-                              <button 
-                                onClick={() => updateStatus(s.id, 'IN_TRANSIT')}
-                                className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
-                                title="Mark as In Transit"
-                              >
-                                <Truck className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            {s.status === 'IN_TRANSIT' && (
-                              <button 
-                                onClick={() => updateStatus(s.id, 'DELIVERED')}
-                                className="p-1.5 bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-100"
-                                title="Mark as Delivered"
-                              >
-                                <CheckCircle className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            <button 
-                              onClick={() => updateStatus(s.id, 'DELAYED')}
-                              className="p-1.5 bg-amber-50 text-amber-600 rounded hover:bg-amber-100"
-                              title="Mark as Delayed"
-                            >
-                              <AlertCircle className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          <button 
+                            onClick={() => setUpdatingShipment(s)}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all text-[10px] font-black uppercase tracking-widest"
+                          >
+                            <Truck className="w-3.5 h-3.5" />
+                            Log Event
+                          </button>
                         </td>
                         <td className="p-4" onClick={(e) => e.stopPropagation()}>
                           <button 
@@ -919,6 +902,13 @@ export default function Shipments() {
           </div>
         )}
       </Modal>
+      
+      <ShipmentUpdateModal 
+        isOpen={!!updatingShipment}
+        onClose={() => setUpdatingShipment(null)}
+        shipment={updatingShipment}
+        onUpdate={updateStatus}
+      />
     </div>
   );
 }

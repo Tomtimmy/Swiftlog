@@ -59,6 +59,10 @@ export function useTasks() {
   };
 
   const addPersonalTask = async (title: string) => {
+    return await createTask({ title, isPersonal: true });
+  };
+
+  const createTask = async (data: { title: string, description?: string, priority?: string, assignedUserId?: string, location?: string, isPersonal?: boolean }) => {
     if (!user) return;
     try {
       const res = await fetch('/api/tasks', {
@@ -67,15 +71,20 @@ export function useTasks() {
           'Content-Type': 'application/json',
           'x-user-id': user.uid 
         },
-        body: JSON.stringify({ title, is_personal: true })
+        body: JSON.stringify({ 
+          ...data,
+          is_personal: data.isPersonal 
+        })
       });
       if (res.ok) {
         await fetchTasks();
+        return true;
       }
     } catch (err) {
       console.error('Failed to create task', err);
     }
+    return false;
   };
 
-  return { tasks, loading, moveTask, addPersonalTask, isOffline };
+  return { tasks, loading, moveTask, addPersonalTask, createTask, isOffline };
 }

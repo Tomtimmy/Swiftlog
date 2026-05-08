@@ -29,7 +29,7 @@ export function useShipments() {
     fetchData();
   }, [user?.uid]);
 
-  const updateStatus = async (id: string, status: ShipmentStatus) => {
+  const updateStatus = async (id: string, status: ShipmentStatus, location?: string, note?: string) => {
     if (!user) return;
     try {
       const res = await fetch(`/api/shipments/${id}`, {
@@ -38,7 +38,7 @@ export function useShipments() {
           'Content-Type': 'application/json',
           'x-user-id': user.uid 
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status, location, note })
       });
       if (res.ok) {
         await fetchData();
