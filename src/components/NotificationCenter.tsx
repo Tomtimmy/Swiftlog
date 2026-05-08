@@ -35,7 +35,7 @@ export default function NotificationCenter() {
               >
                 <div className="flex gap-3">
                   <div className="mt-1">
-                    {n.message.toLowerCase().includes('critical') ? (
+                    {(n.message?.toLowerCase() || '').includes('critical') ? (
                       <AlertCircle className="w-4 h-4 text-red-500" />
                     ) : (
                       <Circle className={cn("w-2 h-2 mt-1", !n.read ? "fill-blue-600 text-blue-600" : "text-gray-300")} />

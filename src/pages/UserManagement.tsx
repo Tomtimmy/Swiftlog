@@ -171,9 +171,9 @@ export default function UserManagement() {
   };
 
   const filteredTeam = team.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (u.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (u.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (u.role?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (u.location && u.location.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 

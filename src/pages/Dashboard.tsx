@@ -13,6 +13,7 @@ import {
 import StatsCard from '../components/StatsCard';
 import { StatusBadge } from '../components/Badges';
 import NotificationCenter from '../components/NotificationCenter';
+import LogisticsMap from '../components/LogisticsMap';
 import { 
   XAxis, 
   YAxis, 
@@ -142,57 +143,12 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (tab: string) =
         <div className="lg:col-span-2 technical-card p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500">
-              {isDriver ? 'Active Route Map' : 'Global Revenue Stream (Last 7 Days)'}
+              {isDriver ? 'Active Navigation Terminal' : 'Global Logistics Distribution'}
             </h2>
           </div>
-          {isDriver ? (
-            <div className="h-[300px] w-full bg-gray-50 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-gray-200">
-               <Truck className="w-12 h-12 text-gray-300 mb-2" />
-               <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Active Navigation Terminal</p>
-               <p className="text-xs text-gray-400 mt-1">{displayShipments[0]?.origin || 'Hub'} → {displayShipments[0]?.destination || 'Destination'}</p>
-            </div>
-          ) : (
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={revenueData}>
-                  <defs>
-                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 12, fill: '#9CA3AF' }}
-                    dy={10}
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 12, fill: '#9CA3AF' }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      borderRadius: '8px', 
-                      border: 'none', 
-                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' 
-                    }} 
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="#3B82F6" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorValue)" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
+          <div className="h-[400px] w-full overflow-hidden rounded-lg border border-gray-100 shadow-inner">
+            <LogisticsMap shipments={shipments} />
+          </div>
         </div>
 
         <NotificationCenter />

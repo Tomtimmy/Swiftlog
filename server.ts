@@ -479,8 +479,20 @@ async function startServer() {
     const shipments = await db.all(query, params);
     // Parse JSON fields
     const parsedShipments = shipments.map((s: any) => ({
-      ...s,
-      history: s.history ? JSON.parse(s.history) : []
+      id: s.id,
+      tenantId: s.tenant_id,
+      trackingNumber: s.tracking_number,
+      origin: s.origin,
+      destination: s.destination,
+      status: s.status,
+      estimatedDelivery: s.estimated_delivery,
+      assignedDriverId: s.assigned_driver_id,
+      currentLat: s.current_lat,
+      currentLng: s.current_lng,
+      location: s.location,
+      history: s.history ? JSON.parse(s.history) : [],
+      createdAt: s.created_at,
+      updatedAt: s.updated_at
     }));
     res.json(parsedShipments);
   });
@@ -615,6 +627,16 @@ async function startServer() {
     const { quantity } = req.body;
     const updatedAt = new Date().toISOString();
     await db.run('UPDATE inventories SET quantity = ?, updated_at = ? WHERE id = ?', [quantity, updatedAt, req.params.id]);
+    
+    // Automatically trigger alert if stock is low
+    if (quantity < 10) {
+      const item = await db.get('SELECT name, sku FROM inventories WHERE id = ?', [req.params.id]);
+      await db.run(
+        'INSERT INTO notifications (id, tenant_id, user_id, title, message, type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [`NOTIF-${Date.now()}`, req.user.tenant_id, null, 'Low Stock Alert', `Critical: Item ${item.name} (${item.sku}) is low on stock (${quantity} units remaining).`, 'ALERT', updatedAt]
+      );
+    }
+    
     res.json({ success: true, updatedAt });
   });
 
@@ -746,7 +768,7 @@ async function startServer() {
     const tenantId = user.tenant_id;
 
     const shipments = await db.all('SELECT status FROM shipments WHERE tenant_id = ?', [tenantId]);
-    const alerts = await db.get('SELECT COUNT(*) as count FROM notifications WHERE tenant_id = ? AND is_read = 0 AND type = "ALERT"', [tenantId]);
+    const alerts = await db.get('SELECT COUNT(*) as count FROM notifications WHERE tenant_id = ? AND is_read = 0 AND type = \'ALERT\'', [tenantId]);
     const fleet = await db.all('SELECT status FROM vehicles WHERE tenant_id = ?', [tenantId]);
 
     const activeShipments = shipments.filter((s: any) => s.status === 'IN_TRANSIT').length;
@@ -884,7 +906,7 @@ async function startServer() {
   });
 
   app.get('/api/drivers', authMiddleware, async (req: any, res) => {
-    const drivers = await db.all('SELECT id, name FROM users WHERE role = "DRIVER" AND tenant_id = ?', [req.user.tenant_id]);
+    const drivers = await db.all('SELECT id, name FROM users WHERE role = \'DRIVER\' AND tenant_id = ?', [req.user.tenant_id]);
     res.json(drivers);
   });
   

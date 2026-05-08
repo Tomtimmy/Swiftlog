@@ -40,8 +40,8 @@ export default function Inventory() {
   const isManager = user?.role === 'ADMIN' || user?.role === 'COORDINATOR';
 
   const filtered = items.filter(i => 
-    i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    i.sku.toLowerCase().includes(searchTerm.toLowerCase())
+    (i.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (i.sku?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
 
   const handleEditClick = (item: InventoryItem) => {

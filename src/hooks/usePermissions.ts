@@ -43,7 +43,7 @@ export function usePermissions() {
   const hasPermission = (feature: string) => {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
-    return permissions.find(p => p.role === user.role && p.feature.toLowerCase() === feature.toLowerCase())?.enabled === 1;
+    return permissions.find(p => p.role === user.role && p.feature?.toLowerCase() === feature?.toLowerCase())?.enabled === 1;
   };
 
   return { permissions, loading, hasPermission };

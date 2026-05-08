@@ -116,9 +116,9 @@ export default function Shipments() {
 
   const filtered = shipments
     .filter(s => {
-      const matchesSearch = s.trackingNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          s.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          s.destination.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = (s.trackingNumber?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                          (s.origin?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                          (s.destination?.toLowerCase() || '').includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'ALL' || s.status === statusFilter;
       const matchesOrigin = originFilter === 'ALL' || s.origin === originFilter;
       const matchesDestination = destinationFilter === 'ALL' || s.destination === destinationFilter;
