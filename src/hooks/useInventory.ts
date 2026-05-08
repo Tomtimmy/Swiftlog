@@ -101,5 +101,28 @@ export function useInventory() {
     }
   };
 
-  return { items, loading, updatePrice, addItem, updateStock, refresh: fetchInventory };
+  const transferStock = async (data: { sku: string, quantity: number, sourceLocation: string, destLocation: string }) => {
+    if (!user) return;
+    try {
+      const res = await fetch('/api/inventory/transfer', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': user.uid 
+        },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        await fetchInventory();
+        return true;
+      }
+      const errorData = await res.json();
+      throw new Error(errorData.error || 'Transfer failed');
+    } catch (err) {
+      console.error('Failed to transfer stock', err);
+      throw err;
+    }
+  };
+
+  return { items, loading, updatePrice, addItem, updateStock, transferStock, refresh: fetchInventory };
 }

@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
-import { Package, Search, Edit3, ShieldAlert, Check, X, AlertCircle, TrendingUp, Filter } from 'lucide-react';
+import { Package, Search, Edit3, ShieldAlert, Check, X, AlertCircle, TrendingUp, Filter, ArrowRightLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useInventory, InventoryItem } from '../hooks/useInventory';
 import { useAuth } from '../hooks/useAuth';
+import StockTransferModal from '../components/StockTransferModal';
 
 export default function Inventory() {
-  const { items, loading, updatePrice, addItem } = useInventory();
+  const { items, loading, updatePrice, addItem, transferStock } = useInventory();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [newPrice, setNewPrice] = useState<string>('');
   const [isConfirming, setIsConfirming] = useState(false);
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [newItem, setNewItem] = useState({
     name: '',
     sku: '',
@@ -83,13 +85,22 @@ export default function Inventory() {
         
         <div className="flex items-center gap-3">
           {isManager && (
-            <button 
-              onClick={() => setIsAddItemModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm"
-            >
-              <Package className="w-4 h-4" />
-              Add Stock Item
-            </button>
+            <>
+              <button 
+                onClick={() => setIsAddItemModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                <Package className="w-4 h-4" />
+                Add Stock Item
+              </button>
+              <button 
+                onClick={() => setIsTransferModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors shadow-sm"
+              >
+                <ArrowRightLeft className="w-4 h-4" />
+                Stock Transfer
+              </button>
+            </>
           )}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -372,6 +383,13 @@ export default function Inventory() {
           </div>
         )}
       </AnimatePresence>
+
+      <StockTransferModal 
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
+        items={items}
+        onTransfer={transferStock}
+      />
     </div>
   );
 }

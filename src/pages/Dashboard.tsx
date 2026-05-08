@@ -8,12 +8,19 @@ import {
   AlertTriangle,
   Clock,
   ArrowRight,
-  Loader2
+  Loader2,
+  X,
+  History,
+  ChevronRight
 } from 'lucide-react';
 import StatsCard from '../components/StatsCard';
 import { StatusBadge } from '../components/Badges';
 import NotificationCenter from '../components/NotificationCenter';
 import LogisticsMap from '../components/LogisticsMap';
+import ShipmentTimeline from '../components/ShipmentTimeline';
+import AIAssistant from '../components/AIAssistant';
+import { Shipment, InventoryItem, Task } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   XAxis, 
   YAxis, 
@@ -29,7 +36,10 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (tab: string) =
   const { shipments, loading: shipLoading } = useShipments();
   const [stats, setStats] = useState<any>(null);
   const [revenueData, setRevenueData] = useState<any[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
 
   const isDriver = user?.role === 'DRIVER';
   const isAdmin = user?.role === 'ADMIN';
@@ -55,13 +65,17 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (tab: string) =
     async function fetchDashboardData() {
       if (!user) return;
       try {
-        const [statsRes, revenueRes] = await Promise.all([
+        const [statsRes, revenueRes, invRes, taskRes] = await Promise.all([
           fetch('/api/dashboard/stats', { headers: { 'x-user-id': user.uid } }),
-          fetch('/api/dashboard/revenue', { headers: { 'x-user-id': user.uid } })
+          fetch('/api/dashboard/revenue', { headers: { 'x-user-id': user.uid } }),
+          fetch('/api/inventory', { headers: { 'x-user-id': user.uid } }),
+          fetch('/api/tasks', { headers: { 'x-user-id': user.uid } })
         ]);
 
         if (statsRes.ok) setStats(await statsRes.json());
         if (revenueRes.ok) setRevenueData(await revenueRes.json());
+        if (invRes.ok) setInventory(await invRes.json());
+        if (taskRes.ok) setTasks(await taskRes.json());
       } catch (err) {
         console.error('Failed to fetch dashboard data', err);
       } finally {
@@ -151,16 +165,22 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (tab: string) =
           </div>
         </div>
 
-        <NotificationCenter />
+        <div className="space-y-6">
+          <AIAssistant shipments={shipments} inventory={inventory} tasks={tasks} />
+          <NotificationCenter />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 technical-card">
+        <div className="lg:col-span-2 technical-card relative">
           <div className="p-6 border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900">
               {isDriver ? 'My Assigned Deliveries' : 'Internal Registry: Recent Shipments'}
             </h2>
-            <button className="text-xs font-semibold text-blue-600 flex items-center gap-1 hover:underline">
+            <button 
+              onClick={() => onNavigate?.('shipments')}
+              className="text-xs font-semibold text-blue-600 flex items-center gap-1 hover:underline"
+            >
               View All <ArrowRight className="w-3 h-3" />
             </button>
           </div>
@@ -177,8 +197,21 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (tab: string) =
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {displayShipments.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="p-4 font-bold text-gray-900">{s.id}</td>
+                  <tr 
+                    key={s.id} 
+                    onClick={() => setSelectedShipment(s as any)}
+                    className={`hover:bg-blue-50/50 transition-colors cursor-pointer group ${
+                      selectedShipment?.id === s.id ? 'bg-blue-50' : ''
+                    }`}
+                  >
+                    <td className="p-4 font-bold text-gray-900">
+                      <div className="flex items-center gap-2">
+                        {s.id}
+                        <ChevronRight className={`w-3 h-3 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity ${
+                          selectedShipment?.id === s.id ? 'opacity-100' : ''
+                        }`} />
+                      </div>
+                    </td>
                     <td className="p-4">
                       <p className="font-mono text-gray-600">{s.tracking_number}</p>
                     </td>
@@ -208,6 +241,7 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (tab: string) =
           <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-6">
             {isDriver ? 'Vehicle Health' : 'Fleet Status Matrix'}
           </h2>
+          {/* ... existing fleet status code ... */}
           <div className="space-y-6">
             {isDriver ? (
               <>
@@ -262,6 +296,85 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (tab: string) =
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {selectedShipment && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedShipment(null)}
+              className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40"
+            />
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 flex flex-col"
+            >
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <div>
+                  <h3 className="text-sm font-black text-gray-900 uppercase tracking-tighter flex items-center gap-2">
+                    <History className="w-4 h-4 text-blue-600" />
+                    Shipment Timeline
+                  </h3>
+                  <p className="text-[10px] font-bold text-gray-400 mt-0.5 tracking-widest uppercase">
+                    {selectedShipment.tracking_number || selectedShipment.id}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setSelectedShipment(null)}
+                  className="p-2 hover:bg-white rounded-full transition-colors border border-transparent hover:border-gray-100 shadow-sm"
+                >
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
+                <div className="mb-8 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <StatusBadge status={selectedShipment.status as any} />
+                    <span className="text-[10px] font-mono text-blue-600 font-bold">
+                      ETA: {new Date(selectedShipment.estimated_delivery).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="text-center">
+                      <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Origin</p>
+                      <p className="font-bold text-gray-900">{selectedShipment.origin}</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-blue-300" />
+                    <div className="text-center">
+                      <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Destination</p>
+                      <p className="font-bold text-gray-900">{selectedShipment.destination}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <ShipmentTimeline 
+                  history={(selectedShipment as any).history || []} 
+                  currentStatus={selectedShipment.status as any} 
+                />
+              </div>
+
+              <div className="p-6 border-t border-gray-100 bg-gray-50/50">
+                <button 
+                  onClick={() => {
+                    setSelectedShipment(null);
+                    onNavigate?.('shipments');
+                  }}
+                  className="w-full py-3 bg-gray-900 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                >
+                  Manage Full Shipment Info
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

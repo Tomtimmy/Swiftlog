@@ -1,6 +1,6 @@
 {
   "name": "SwiftConnect Terminal",
-  "description": "Enterprise-grade logistics fleet management terminal for real-time shipment tracking, task orchestration, and team coordination.",
+  "description": "Enterprise-grade logistics terminal for real-time fleet tracking, AI-powered insights, inter-warehouse stock migration, and mission-critical task orchestration.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

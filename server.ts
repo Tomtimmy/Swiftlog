@@ -106,6 +106,18 @@ async function startServer() {
         PRIMARY KEY (role, feature)
       );
 
+      CREATE TABLE IF NOT EXISTS transfers (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT,
+        sku TEXT,
+        quantity INTEGER,
+        source_location TEXT,
+        dest_location TEXT,
+        status TEXT,
+        created_at TEXT,
+        updated_at TEXT
+      );
+      
       CREATE TABLE IF NOT EXISTS inventories (
         id TEXT PRIMARY KEY,
         tenant_id TEXT,
@@ -681,6 +693,92 @@ async function startServer() {
     );
 
     res.json({ success: true, updatedAt });
+  });
+
+  // Inventory Transfers API
+  app.get('/api/inventory/transfers', authMiddleware, async (req: any, res) => {
+    const user = req.user;
+    const transfers = await db.all(
+      'SELECT * FROM transfers WHERE tenant_id = ? ORDER BY created_at DESC',
+      [user.tenant_id]
+    );
+    res.json(transfers.map((t: any) => ({
+      id: t.id,
+      tenantId: t.tenant_id,
+      sku: t.sku,
+      quantity: t.quantity,
+      sourceLocation: t.source_location,
+      destLocation: t.dest_location,
+      status: t.status,
+      createdAt: t.created_at,
+      updatedAt: t.updated_at
+    })));
+  });
+
+  app.post('/api/inventory/transfer', authMiddleware, async (req: any, res) => {
+    const user = req.user;
+    const { sku, quantity, sourceLocation, destLocation } = req.body;
+    const id = `TRF-${Date.now()}`;
+    const now = new Date().toISOString();
+
+    try {
+      // 1. Verify enough stock at source
+      const sourceItem = await db.get(
+        'SELECT quantity FROM inventories WHERE sku = ? AND tenant_id = ? AND location = ?',
+        [sku, user.tenant_id, sourceLocation]
+      );
+
+      if (!sourceItem || sourceItem.quantity < quantity) {
+        return res.status(400).json({ error: 'Insufficient stock at source location' });
+      }
+
+      // 2. Perform the transfer in a simulated transaction
+      await db.run(
+        'UPDATE inventories SET quantity = quantity - ?, updated_at = ? WHERE sku = ? AND tenant_id = ? AND location = ?',
+        [quantity, now, sku, user.tenant_id, sourceLocation]
+      );
+
+      // 3. Increment at destination (or create if not exist)
+      const destItem = await db.get(
+        'SELECT id FROM inventories WHERE sku = ? AND tenant_id = ? AND location = ?',
+        [sku, user.tenant_id, destLocation]
+      );
+
+      if (destItem) {
+        await db.run(
+          'UPDATE inventories SET quantity = quantity + ?, updated_at = ? WHERE sku = ? AND tenant_id = ? AND location = ?',
+          [quantity, now, sku, user.tenant_id, destLocation]
+        );
+      } else {
+        // Find existing item details to clone
+        const itemInfo = await db.get(
+          'SELECT name, category, price, unit FROM inventories WHERE sku = ? AND tenant_id = ? LIMIT 1',
+          [sku, user.tenant_id]
+        );
+        
+        await db.run(
+          'INSERT INTO inventories (id, tenant_id, sku, name, category, quantity, price, unit, location, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [`INV-${Date.now()}-2`, user.tenant_id, sku, itemInfo.name, itemInfo.category, quantity, itemInfo.price, itemInfo.unit, destLocation, now]
+        );
+      }
+
+      // 4. Record transfer
+      await db.run(
+        'INSERT INTO transfers (id, tenant_id, sku, quantity, source_location, dest_location, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, user.tenant_id, sku, quantity, sourceLocation, destLocation, 'COMPLETED', now, now]
+      );
+
+      // 5. Notify
+      await db.run(
+        'INSERT INTO notifications (id, tenant_id, user_id, title, message, type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [`NOTIF-${Date.now()}`, user.tenant_id, null, 'Stock Transfer', `Succesfully moved ${quantity} units of ${sku} from ${sourceLocation} to ${destLocation}.`, 'INFO', now]
+      );
+
+      res.json({ success: true, id });
+    } catch (err) {
+      console.error('Transfer error:', err);
+      res.status(500).json({ error: 'Internal server error during transfer' });
+    }
   });
 
   // Fleet API
